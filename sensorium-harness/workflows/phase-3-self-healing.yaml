@@ -1,0 +1,55 @@
+name: Phase 3 — Self-Healing Resilience
+description: Health Assessor, Failure Predictor (Isolation Forest), Automated Remediation, Supervisor + Sidecars, Automerge Repo Sync, Autonomous CI Agents
+
+ steps:
+  - name: Health Assessor
+    agent: chaos-engineering
+    tasks:
+      - 5 Dimensionen (Audio, MIDI, Network, System, State)
+      - OpenTelemetry Metriken-Sammlung
+      - Dashboard-Integration
+
+  - name: Failure Predictor
+    agent: local-ai
+    tasks:
+      - Isolation Forest (Online Learning) auf Health Metrics
+      - candle für Inference
+      - Training Data Pipeline
+
+  - name: Automated Remediation
+    agent: chaos-engineering
+    tasks:
+      - Escalation Ladder + Cooldowns + Human-in-Loop
+      - Decision Engine mit Audit Trail
+      - Auto-Restart, Config-Rollback, Sidecar-Kill
+
+  - name: Supervisor + Sidecars
+    agent: release-automation
+    tasks:
+      - cargo-dist Sidecar Pattern (Audio, Visual, MIDI, Network)
+      - Prozess-Isolation, Independent Deploy
+      - Health-Checks, Restart-Policy, Upgrade-Pfad
+
+  - name: Automerge Repo Sync
+    agent: state-sync
+    tasks:
+      - automerge-repo mit WebTransport Backend
+      - Conflict Resolution Metrics
+      - Offline-First-Test-Suite
+
+  - name: Autonomous CI Agents
+    agent: release-automation
+    tasks:
+      - Scheduled Tasks für Continuous Verification
+      - Self-Healing PR Reviews
+      - Memory Graph für Cross-Session Learning
+
+ gates:
+  - id: M3
+    criteria:
+      - Health Dimensions > 0.8 bei Normalbetrieb
+      - Failure Prediction Horizon > 30s, Precision > 80%
+      - Remediation MTTR < 500ms (Audio), < 100ms (MIDI)
+      - Supervisor managed 4 Sidecars
+      - Automerge Repo: Offline-First, Conflict-Free, Binary Format
+      - Autonomous Agent: PR Review + Merge Decision ohne Human

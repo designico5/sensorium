@@ -1,0 +1,18 @@
+VERIFICATION REPORT
+==================
+Time: 2026-08-20T18:53:18Z
+Mode: all
+
+[build]
+🔍 Pre-Commit Verification Gate
+📦 Building workspace...
+🔎 Type checking...
+🧹 Linting...
+  FAIL
+[eval]
+📊 Report: /mnt/c/Users/Administrator/Videos/sensorium/sensorium-harness/eval-reports/M1/report.json
+  PASS
+[benchmark]
+📊 Post-Merge Benchmark + Regression Gate
+🎵 Running audio benchmarks...
+  FAIL

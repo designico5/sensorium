@@ -1,0 +1,54 @@
+name: Phase 5 — Developer Velocity + Eval-Driven
+description: llamafile Local AI, Hot Reload, Release Automation, DX Tools (REPL + Time-Travel), Eval Harness Integration, Skill Documentation
+
+ steps:
+  - name: Local AI: llamafile
+    agent: local-ai
+    tasks:
+      - Single-File LLM (Llama 3.1 8B Q4_K_M) mit Cosmopolitan Binary
+      - Function Calling + Session Management
+      - Quantisierung für Metal/WebGPU
+
+  - name: Hot Reload
+    agent: release-automation
+    tasks:
+      - cargo-watch für Rust < 2s
+      - Vite HMR für TS < 200ms
+      - Watch-Modus in IDE integriert
+
+  - name: Release Automation: cargo-dist
+    agent: release-automation
+    tasks:
+      - GitHub Releases, Installers, Auto-Update
+      - SBOM + Provenance
+      - Multi-Platform Signing
+
+  - name: DX Tools: REPL + Time-Travel
+    agent: audio-engine
+    tasks:
+      - evcxr REPL für Live-Parameter-Tweaking
+      - State Snapshots + Time-Travel Debugging
+      - Profiling-Integration (flamegraph, Tracy)
+
+  - name: Eval Harness Integration
+    agent: chaos-engineering
+    tasks:
+      - eval-harness für alle Gates
+      - pass@k Tracking in Rust
+      - Regression Detection Auto
+
+  - name: Skill Documentation
+    agent: release-automation
+    tasks:
+      - Alle 9 Sensorium-Skills schreiben + versionieren
+      - Knowledge Base Complete
+
+ gates:
+  - id: M5
+    criteria:
+      - llamafile < 500ms First Token, < 100MB RAM
+      - Hot Reload: Rust < 2s, TS < 200ms
+      - cargo-dist: Signed Releases für Linux/Win/Mac/iOS/Android
+      - REPL: Live Parameter Tweaking im Running System
+      - SBOM + Provenance automatisiert
+      - Eval Harness: pass@3 > 90% für alle M1-M5 Capability Evals

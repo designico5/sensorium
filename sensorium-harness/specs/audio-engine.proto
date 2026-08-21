@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package sensorium.audio;
+
+// Audio Callback contract between audio thread and DSP engine
+message AudioCallback {
+  int32 buffer_size = 1;        // Samples per callback
+  float sample_rate = 2;        // Hz
+  repeated float input = 3;     // Input buffer (interleaved)
+  repeated float output = 4;    // Output buffer (interleaved)
+  Transport transport = 5;
+}
+
+message Transport {
+  bool playing = 1;
+  double tempo = 2;             // BPM
+  double time_signature = 3;    // e.g. 4.0 for 4/4
+  int64 position_samples = 4;   // Sample-accurate position
+  bool loop_enabled = 5;
+  int64 loop_start = 6;
+  int64 loop_end = 7;
+}
+
+// Normalized parameter [0.0, 1.0] for automation-safe control
+message NormalizedParam {
+  int32 id = 1;
+  float value = 2;              // 0.0 to 1.0
+  int64 timestamp_samples = 3;  // Sample-accurate automation
+}
+
+// Audio analysis data for visual engine
+message AudioAnalysisData {
+  repeated float fft = 1;       // Frequency bins (e.g. 1024)
+  float rms = 2;                // Root mean square
+  float peak = 3;               // Peak amplitude
+  int64 timestamp_samples = 4;
+}

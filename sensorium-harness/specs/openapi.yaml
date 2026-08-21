@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: Sensorium AI Studio API
+  version: "2.0"
+  description: |
+    Web Dashboard + Control API for Sensorium AI Studio.
+    Protocol-first; contracts are generated from this spec.
+
+servers:
+  - url: http://localhost:5173/api
+    description: Local Development
+
+paths:
+  /audio/parameters:
+    get:
+      summary: List current audio parameters
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AudioParameter'
+    post:
+      summary: Update audio parameter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterUpdate'
+      responses:
+        '200':
+          description: OK
+
+  /midi/devices:
+    get:
+      summary: List connected MIDI devices
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MIDIDevice'
+
+  /state/sync:
+    post:
+      summary: Push state sync ops
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncMessage'
+      responses:
+        '200':
+          description: OK
+
+  /ai/inference:
+    post:
+      summary: Run local LLM inference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InferenceRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+components:
+  schemas:
+    AudioParameter:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        value:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+
+    ParameterUpdate:
+      type: object
+      required: [id, value]
+      properties:
+        id:
+          type: integer
+        value:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+
+    MIDIDevice:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        supports_ump:
+          type: boolean
+        supports_mpe:
+          type: boolean
+
+    SyncMessage:
+      type: object
+      properties:
+        peer_id:
+          type: string
+        ops:
+          type: array
+          items:
+            type: object
+
+    InferenceRequest:
+      type: object
+      required: [messages]
+      properties:
+        session_id:
+          type: string
+        messages:
+          type: array
+          items:
+            type: string
+        max_tokens:
+          type: integer
+        temperature:
+          type: number

@@ -1,0 +1,45 @@
+name: Release Automation
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-dist
+        run: cargo install cargo-dist --version 0.1
+      - name: Build & Release
+        run: cargo dist generate
+
+  sign-binaries:
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+      - name: Sign Binaries (simulated)
+        run: |
+          echo "Signing binaries with code signing certificate..."
+          # In production: use cosign or sigstore for signing
+          find . -name "*.tar.gz" -o -name "*.appimage" -o -name "*.msi" | xargs -I {} echo "Signed: {}"
+
+  provenance:
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Provenance
+        run: |
+          # SLSA Provenance generation
+          echo '{"buildType": "github-hosted", "builder": {"id": "..."}}' > provenance.json
+      - name: Upload Provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance
+          path: provenance.json

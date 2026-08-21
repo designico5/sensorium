@@ -1,0 +1,318 @@
+# Phase 0 Bootstrap Blueprint
+# Generated from SENSORIUM_PLANNING_AGENDA_v3_2026.md
+# Objective: sensorium-v2 foundation bootstrap with nih-plug, automerge, webtransport, formal verification, eval harness
+
+meta:
+  name: "sensorium-phase-0-bootstrap"
+  description: "Foundation bootstrap for Sensorium v2 with 5-pillar architecture, agent harness, and eval-driven development"
+  target_dir: "sensorium-harness"
+  phases: 7
+  parallel_groups:
+    - ["blueprint_adr", "monorepo_setup"]
+    - ["nih_plug_scaffold", "automerge_setup", "webtransport_setup"]
+    - ["ci_formal_verification", "contract_artifacts"]
+    - ["eval_harness", "agent_harness_skeleton"]
+    - ["benchmarks_evals"]
+
+steps:
+  # Tag 1: Blueprint & ADR Templates
+    - id: blueprint_adr
+      name: "Blueprint & ADR Templates"
+      description: "Create blueprint for Phase 0 and ADR templates for architecture decisions"
+      agent: "architect"
+      skills: ["blueprint", "architecture-decision-records"]
+      tasks:
+        - "Run blueprint skill for 'sensorium-v2 foundation bootstrap with nih-plug, automerge, webtransport, formal verification, eval harness'"
+        - "Output: workflows/phase-0-bootstrap.yaml (this file)"
+        - "Create ADR template at memory/architecture-decisions/template.md"
+        - "Create first ADR: 001-nih-plug-audio-engine.md"
+        - "Create first ADR: 002-automerge-state-sync.md"
+        - "Create first ADR: 003-webtransport-midi.md"
+      verification:
+        - "ls workflows/phase-0-bootstrap.yaml"
+        - "ls memory/architecture-decisions/template.md"
+        - "ls memory/architecture-decisions/001-nih-plug-audio-engine.md"
+        - "ls memory/architecture-decisions/002-automerge-state-sync.md"
+        - "ls memory/architecture-decisions/003-webtransport-midi.md"
+      exit_criteria:
+        - "Blueprint file exists and is valid YAML"
+        - "ADR template exists with standard structure"
+        - "3 initial ADRs created with context/decision/consequences"
+
+  - id: monorepo_setup
+    name: "Monorepo Setup"
+    description: "Initialize cargo workspace + npm workspaces + turborepo structure"
+    agent: "devops"
+    skills: ["rust-patterns", "deployment-patterns"]
+    tasks:
+      - "Create Cargo.toml at sensorium-harness/ with workspace config"
+      - "Create package.json at sensorium-harness/ with workspaces config"
+      - "Create turbo.json for turborepo pipeline"
+      - "Create .github/workflows directory structure"
+      - "Create sensorium-v2/ directory for actual implementation"
+      - "Initialize git submodules if needed"
+    verification:
+      - "cargo check --workspace 2>&1 | head -5"
+      - "npm ls 2>&1 | head -5"
+      - "ls sensorium-harness/Cargo.toml"
+      - "ls sensorium-harness/package.json"
+      - "ls sensorium-harness/turbo.json"
+    exit_criteria:
+      - "Cargo workspace builds without errors"
+      - "npm workspaces configured"
+      - "turborepo pipeline defined"
+
+  - id: nih_plug_scaffold
+    name: "NIH-Plug Scaffold"
+    description: "Create NIH-Plug audio plugin crate with VST3/CLAP/Standalone/Vizia features"
+    agent: "audio-engine"
+    skills: ["nih-plug-development", "rust-patterns", "latency-critical-patterns"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "cargo new --lib sensorium-audio"
+      - "Configure Cargo.toml with nih-plug 0.8 features: vst3, clap, standalone, vizia"
+      - "Add dependencies: fundsp 0.11, rubato 0.16, cpal 0.16, ringbuf 0.4"
+      - "Create basic plugin structure: lib.rs, plugin.rs, params.rs, editor.rs"
+      - "Implement minimal AudioPlugin trait"
+      - "Add Vizia GUI skeleton"
+      - "Verify: cargo build --package sensorium-audio --features vst3,clap,standalone,vizia"
+    verification:
+      - "cargo build --package sensorium-audio --release --features vst3,clap,standalone,vizia 2>&1 | tail -10"
+      - "ls target/release/*.dylib target/release/*.so target/release/*.dll 2>/dev/null | head -5"
+    exit_criteria:
+      - "sensorium-audio crate compiles with all 4 features"
+      - "VST3/CLAP/Standalone binaries produced"
+      - "Vizia GUI compiles"
+
+  - id: automerge_setup
+    name: "Automerge 2.0 + Yjs Setup"
+    description: "Configure Automerge 2.0 Rust crate with WASM and Yjs 13.6 for Web"
+    agent: "state-sync"
+    skills: ["automerge-crdt-patterns", "rust-patterns", "contract-first-api"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "cargo new --lib sensorium-sync"
+      - "Add automerge 2.0 with features: wasm, serde, bytes"
+      - "Add automerge-repo 2.0 for network sync"
+      - "Create Automerge document management API"
+      - "Create binary format save/load functions"
+      - "Setup wasm-pack for WebAssembly target"
+      - "Create Yjs 13.6 + y-webtransport provider config for frontend"
+      - "Verify: cargo build --package sensorium-sync --features wasm,serde"
+    verification:
+      - "cargo build --package sensorium-sync --release --features wasm,serde 2>&1 | tail -10"
+      - "wasm-pack build --target web --out-dir pkg sensorium-sync 2>&1 | tail -5"
+    exit_criteria:
+      - "sensorium-sync compiles with WASM features"
+      - "wasm-pack produces .wasm and .js bindings"
+      - "Yjs provider config ready for frontend"
+
+  - id: webtransport_setup
+    name: "WebTransport + QUIC Setup"
+    description: "Configure Quinn QUIC server + WebTransport for MIDI 2.0 over HTTP/3"
+    agent: "midi-2.0"
+    skills: ["webtransport-quic-patterns", "rust-patterns", "latency-critical-patterns"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "cargo new --lib sensorium-midi"
+      - "Add quinn 0.11, webtransport 0.12, rustls 0.23, tokio 1.38"
+      - "Create QUIC server with TLS cert generation (self-signed for dev)"
+      - "Implement WebTransport endpoint handler"
+      - "Add MIDI 2.0 UMP message framing over WebTransport streams"
+      - "Implement 0-RTT reconnect logic"
+      - "Add stream multiplexing for MIDI/SysEx/Metadata"
+      - "Verify: cargo build --package sensorium-midi --features webtransport,quic"
+    verification:
+      - "cargo build --package sensorium-midi --release --features webtransport,quic 2>&1 | tail -10"
+      - "cargo test --package sensorium-midi --lib 2>&1 | tail -10"
+    exit_criteria:
+      - "sensorium-midi compiles with QUIC/WebTransport features"
+      - "QUIC server starts and accepts connections"
+      - "WebTransport endpoint responds to connections"
+
+  - id: ci_formal_verification
+    name: "CI with Formal Verification"
+    description: "Create GitHub Actions workflow with Kani, Prusti, Creusot integration"
+    agent: "formal-verification"
+    skills: ["formal-verification-audio", "rust-testing", "deployment-patterns"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create .github/workflows/verify.yml"
+      - "Add jobs: build, type-check, lint, test, formal-verification, contract-test"
+      - "Configure Kani model checking for sensorium-audio"
+      - "Configure Prusti deductive verification"
+      - "Configure Creusot Coq proofs"
+      - "Add cargo-kani, cargo-prusti, cargo-creusot installation steps"
+      - "Set up caching for verification artifacts"
+    verification:
+      - "cat .github/workflows/verify.yml | head -50"
+      - "yaml syntax validation"
+    exit_criteria:
+      - "verify.yml exists with all 6 jobs"
+      - "Kani/Prusti/Creusot steps defined"
+      - "Workflow passes syntax validation"
+
+  - id: contract_artifacts
+    name: "Contract Artifacts (Protobuf + OpenAPI)"
+    description: "Generate Protobuf contracts and OpenAPI spec for all 5 pillars"
+    agent: "state-sync"
+    skills: ["contract-first-api", "api-design"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create specs/ directory"
+      - "Write audio-engine.proto (AudioCallback, Parameter, Transport)"
+      - "Write midi-2.0.proto (UMPMessage, PerNoteExpression, DeviceProfile)"
+      - "Write state-sync.proto (AutomergeOp, SyncMessage, DocumentPatch)"
+      - "Write visual-engine.proto (RenderCommand, GPUBuffer, NodeTransform)"
+      - "Write local-ai.proto (InferenceRequest, FunctionCall, MorphParams)"
+      - "Write openapi.yaml for REST API (Web Dashboard)"
+      - "Add prost/tonic build.rs for code generation"
+      - "Verify: cargo build generates Rust types, npm generates TS types"
+    verification:
+      - "ls specs/*.proto specs/openapi.yaml"
+      - "cargo build --package sensorium-audio 2>&1 | grep -E 'prost|tonic' | head -5"
+    exit_criteria:
+      - "6 contract files created"
+      - "Protobuf generates Rust types via build.rs"
+      - "OpenAPI generates TypeScript types"
+
+  - id: eval_harness
+    name: "Eval Harness Setup"
+    description: "Create eval-driven development framework with pass@k metrics"
+    agent: "chaos-engineering"
+    skills: ["eval-harness", "eval-driven-development", "tdd-workflow"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create evals/ directory with M1-M7 eval definitions"
+      - "Create hooks/eval-runner.sh with capability/regression/report modes"
+      - "Define M1 eval: audio-callback-latency.md (p99<0.5ms, Kani proof)"
+      - "Define M2 eval: contract-generation.md (Protobuf gen, Automerge sync<5ms)"
+      - "Define M3 eval: health-prediction.md (Isolation Forest, precision>80%)"
+      - "Define M4 eval: gpu-compute-throughput.md (FFT<0.1ms, 10k nodes)"
+      - "Define M5 eval: llm-inference-speed.md (llamafile<500ms, hot reload<200ms)"
+      - "Define M6 eval: neural-morph-latency.md (RAVE<10ms)"
+      - "Define M7 eval: production-readiness.md (24h soak, chaos MTTR<500ms)"
+      - "Verify: bash hooks/eval-runner.sh M1 capability"
+    verification:
+      - "bash hooks/eval-runner.sh M1 report 2>&1"
+      - "cat eval-reports/M1/report.json"
+    exit_criteria:
+      - "7 eval definition files created"
+      - "eval-runner.sh executes and produces JSON reports"
+      - "Gate M1 capability evals defined"
+
+  - id: agent_harness_skeleton
+    name: "Agent Harness Skeleton"
+    description: "Create 8 specialized agent runners with schema-first I/O"
+    agent: "architect"
+    skills: ["agent-harness-construction", "autonomous-agent-harness"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create agents/ directory structure for 8 agents"
+      - "Create agent markdown definitions (already done)"
+      - "Create run.sh for each agent with schema-first JSON I/O"
+      - "Implement recovery contracts for each agent"
+      - "Add agents to harness registry"
+      - "Verify: echo '{\"task\":\"build\"}' | bash agents/audio-engine/run.sh"
+    verification:
+      - "echo '{\"task\":\"build\"}' | bash agents/audio-engine/run.sh 2>&1 | head -20"
+      - "ls agents/*/run.sh"
+      - "Recovery contracts implemented"
+    exit_criteria:
+      - "8 agent run.sh files exist and are executable"
+      - "Each accepts JSON stdin, produces JSON stdout"
+      - "Recovery contracts implemented"
+
+  - id: benchmarks_evals
+    name: "First Benchmarks + Evals"
+    description: "Run initial Criterion benchmarks and execute M1 eval suite"
+    agent: "audio-engine"
+    skills: ["criterion", "latency-critical-systems", "eval-harness"]
+    depends_on: ["nih_plug_scaffold", "eval_harness"]
+    tasks:
+      - "Add criterion 0.5 to sensorium-audio dev-dependencies"
+      - "Create benches/audio_callback_latency.rs"
+      - "Implement audio callback benchmark with p50/p95/p99 tracking"
+      - "Run: cargo bench --package sensorium-audio"
+      - "Run: bash hooks/eval-runner.sh M1 capability"
+      - "Run: bash hooks/eval-runner.sh M1 regression"
+      - "Run: bash hooks/eval-runner.sh M1 report"
+    verification:
+      - "cargo bench --package sensorium-audio 2>&1 | tail -20"
+      - "bash hooks/eval-runner.sh M1 report 2>&1"
+      - "cat eval-reports/M1/report.json"
+    exit_criteria:
+      - "Criterion benchmarks run and produce HTML reports"
+      - "M1 eval report generated with capability_count > 0"
+      - "Baseline established for regression detection"
+
+  # ---- Production Hardening Steps (added) ----
+    - id: production-hardening
+      name: "Production Hardening"
+      description: "Add safety, logging, retry, checksum and final verification steps"
+      tasks:
+        # 1. Git identity configuration
+        - "git config --global user.email \"ci@sensorium.dev\""
+        - "git config --global user.name \"CI Bot\""
+        # 2. Create .env with secret placeholders
+        - "echo \"CRITICAL_BUG=\" > .env"
+        - "echo \"NEXT_PHASE=\" >> .env"
+        # 3. Make eval‑runner.sh executable
+        - "chmod +x sensorium-harness/hooks/eval-runner.sh"
+        # 4. Lint workflow YAML
+        - "yamllint -d {extends: default, rules: {document-start: disable}} sensorium-harness/workflows/phase-0-bootstrap.yaml || exit 1"
+        # 5. Retry loop for git submodule init (network resilience)
+        - "retries=0; until git submodule update --init --recursive; do\n          if [[ $retries -ge 3 ]]; then exit 1; fi\n          sleep $((2 ** retries))\n          ((retries++))\n        done"
+        # 6. Structured logging of each step (append JSON to logs)
+        - "mkdir -p logs\n      Step=\\\"git-identity\\\"\n      echo \\\"{\\\"step\\\":\\\"$Step\\\",\\\"status\\\":\\\"ok\\\",\\\"timestamp\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}\\\" >> logs/phase0-${GITHUB_RUN_ID}.json"
+        - "Step=\\\"env-creation\\\"\n      echo \\\"{\\\"step\\\":\\\"$Step\\\",\\\"status\\\":\\\"ok\\\",\\\"timestamp\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}\\\" >> logs/phase0-${GITHUB_RUN_ID}.json"
+        # 7. Generate checksum manifest
+        - "sha256sum workflows/phase-0-bootstrap.yaml hooks/eval-runner.sh > artefacts.json"
+        # 8. Final verification of all artefacts
+        - "required=(\\\"phase-0-bootstrap.yaml\\\" \\\"hooks/eval-runner.sh\\\" \\\"artefacts.json\\\")\n      for f in \"${required[@]}\"; do\n        [[ -f \\\"$f\\\" ]] || { echo \\\"❌ Missing required file: $f\\\"; exit 1; }\n      done\necho \\\"✅ All required artefacts present\\\""
+      exit_criteria:
+        - "git identity configured"
+        - ".env file created with placeholders"
+        - "eval-runner.sh executable"
+        - "Workflow YAML passes yamllint"
+        - "git submodule update retries succeed within 3 attempts"
+        - "artefacts.json checksum manifest generated"
+        - "All required artefacts verified"
+        - "Structured logs written to logs/phase0-*.json"
+  # -------------------------------------------
+
+# Dependency Graph
+dependencies:
+  nih_plug_scaffold: [monorepo_setup]
+  automerge_setup: [monorepo_setup]
+  webtransport_setup: [monorepo_setup]
+  ci_formal_verification: [monorepo_setup]
+  contract_artifacts: [monorepo_setup]
+  eval_harness: [monorepo_setup]
+  agent_harness_skeleton: [monorepo_setup]
+  benchmarks_evals: [nih_plug_scaffold, eval_harness]
+
+# Parallel Execution Groups
+parallel_groups:
+  - [blueprint_adr, monorepo_setup]
+  - [nih_plug_scaffold, automerge_setup, webtransport_setup]
+  - [ci_formal_verification, contract_artifacts]
+  - [eval_harness, agent_harness_skeleton]
+  - [benchmarks_evals]
+
+# Rollback Strategy
+rollback:
+  monorepo_setup: "git clean -fd sensorium-harness/"
+  nih_plug_scaffold: "rm -rf sensorium-audio/"
+  automerge_setup: "rm -rf sensorium-sync/"
+  webtransport_setup: "rm -rf sensorium-midi/"
+  ci_formal_verification: "rm .github/workflows/verify.yml"
+  contract_artifacts: "rm -rf specs/"
+  eval_harness: "rm -rf evals/ hooks/eval-runner.sh"
+  agent_harness_skeleton: "rm -rf agents/*/run.sh"
+  benchmarks_evals: "rm -rf target/criterion/ eval-reports/M1/"
+
+# Model Tier Assignments
+model_tiers:
+  strongest: [blueprint_adr, ci_formal_verification, contract_artifacts]
+  default: [monorepo_setup, nih_plug_scaffold, automerge_setup, webtransport_setup, eval_harness, agent_harness_skeleton, benchmarks_evals]

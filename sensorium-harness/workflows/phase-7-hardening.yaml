@@ -1,0 +1,68 @@
+name: Phase 7 — Production Hardening + Release
+description: 24h Soak Test, Chaos Engineering, Formal Verification Audit, Security Audit, Load Test, Accessibility Audit, Release Automation, Documentation Freeze
+
+ steps:
+  - name: 24h Soak Test
+    agent: chaos-engineering
+    tasks:
+      - 24h Dauerlauf mit voller Auslastung
+      - Memory Leak Detection (dhat)
+      - Zero Crashes, Zero Leaks, Zero Underruns validieren
+
+  - name: Chaos Engineering
+    agent: chaos-engineering
+    tasks:
+      - Kill Sidecars, Network Partition, Memory Pressure, CPU Throttle
+      - MTTR < 500ms für alle Modes
+      - Dokumentation aller Failure-Modi
+
+  - name: Formal Verification Audit
+    agent: formal-verification
+    tasks:
+      - Kani/Prusti Complete Coverage Audio Thread
+      - 100% Hot Path Verified
+      - Proof-Reports archivieren
+
+  - name: Security Audit
+    tasks:
+      - cargo-audit + cargo-deny + trivy + syft SBOM
+      - 0 Critical/High
+      - Abhängigkeits-Review
+
+  - name: Load Test
+    agent: chaos-engineering
+    tasks:
+      - 1000 MIDI Devices, 10k Events/Block, 100 Voices
+      - < 3ms Latenz, < 512MB RAM, < 70% CPU
+
+  - name: Accessibility Audit
+    tasks:
+      - WCAG 2.2 AA, Screen Reader, Keyboard Nav
+      - 100% Compliance
+      - axe-core Report
+
+  - name: Release Automation
+    agent: release-automation
+    tasks:
+      - cargo-dist Automated Multi-Platform Release
+      - Signed Binaries, SBOM, Provenance
+      - GitHub Release Notes generieren
+
+  - name: Documentation Freeze
+    tasks:
+      - Living Docs, API Docs, User Guide, Architecture
+      - Complete + Versioned
+      - Architektur-Entscheidungen (ADRs) finalisieren
+
+ gates:
+  - id: M7
+    criteria:
+      - 24h Soak: Zero Crashes, Zero Memory Leaks, Zero Audio Underruns
+      - Chaos: MTTR < 500ms für alle Failure Modes (Documented)
+      - Formal: 100% Hot Path Functions Verified (Kani/Prusti Report)
+      - Security: 0 Critical/High, SBOM + Provenance (Audit Report)
+      - Load: 1000 Devices @ < 3ms Latenz, < 512MB RAM, < 70% CPU
+      - Accessibility: WCAG 2.2 AA Compliance (Audit)
+      - Signed Binaries: Linux (AppImage), Windows (MSIX), macOS (DMG), iOS, Android
+      - Eval Harness: pass^3 = 100% für alle Regression Evals
+      - Harness: Autonomous Operation für Post-Release Monitoring

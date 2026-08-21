@@ -1,0 +1,48 @@
+name: Phase 2 — Type-Safe Contracts + Formal Verification
+description: Protobuf Contracts, Automerge State, Yjs Web Binding, Kani/Prusti Hot Paths, Property-Based Tests
+
+ steps:
+  - name: Protobuf Contracts
+    agent: state-sync
+    tasks:
+      - audio-engine.proto, midi-2.0.proto, state-sync.proto, visual-engine.proto, local-ai.proto definieren
+      - prost + tonic build.rs für Rust Codegen
+      - ts-proto für TypeScript Codegen
+    approach: Consumer-First (Jobs → Contract → Types)
+
+  - name: Automerge State
+    agent: state-sync
+    tasks:
+      - Automerge Dokumentenverwaltung (Binary Format)
+      - automerge-repo Network Sync Layer
+      - Offline-First-Semantik validieren
+
+  - name: Yjs Web Binding
+    agent: state-sync
+    tasks:
+      - yjs + y-webtransport Provider für Browser
+      - Same Contract, Web-Native
+      - E2E-Test: Rust repo ↔ Browser Yjs
+
+  - name: Formal Verification
+    agent: formal-verification
+    tasks:
+      - Kani (Model Checking) für Hot Paths
+      - Prusti (Deductive) für Parameter-Bounds
+      - CI-Gate: 100% Hot Path Coverage
+
+  - name: Property-Based Tests
+    agent: formal-verification
+    tasks:
+      - proptest + quickcheck für CRDT Merge
+      - QuickCheck in CI integrieren
+
+ gates:
+  - id: M2
+    criteria:
+      - Protobuf → Rust + TS Generierung automatisiert
+      - Automerge State Sync < 5ms
+      - Yjs + WebTransport Sync im Browser funktional
+      - Kani/Prusti Proofs für 100% Hot Path Functions
+      - Property Tests für CRDT Merge pass@3 > 90%
+      - Contract Drift Test: Provider Responses = Contract

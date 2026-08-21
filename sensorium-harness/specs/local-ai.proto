@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package sensorium.ai;
+
+// Inference request for local LLM (llamafile / candle)
+message InferenceRequest {
+  string session_id = 1;
+  repeated string messages = 2; // Chat history / prompt
+  int32 max_tokens = 3;
+  float temperature = 4;
+  float top_p = 5;
+  map<string, string> metadata = 6;
+}
+
+// Streaming token response
+message InferenceResponse {
+  string session_id = 1;
+  string token = 2;
+  bool is_complete = 3;
+  float logprob = 4;
+}
+
+// Function calling schema
+message FunctionCall {
+  string id = 1;
+  string name = 2;             // e.g. "set_parameter", "load_preset"
+  repeated Argument args = 3;
+  string response = 4;
+}
+
+message Argument {
+  string key = 1;
+  oneof value {
+    string string_value = 2;
+    double number_value = 3;
+    bool bool_value = 4;
+  }
+}
+
+// Neural audio morph parameters (RAVE/DDSP)
+message MorphParams {
+  int32 preset_a_id = 1;
+  int32 preset_b_id = 2;
+  float morph_factor = 3;      // 0.0 = A, 1.0 = B
+  int32 latent_dim = 4;        // e.g. 128
+  int64 timestamp_ns = 5;
+}

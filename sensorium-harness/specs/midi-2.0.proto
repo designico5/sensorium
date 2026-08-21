@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package sensorium.midi;
+
+// Universal MIDI Packet (UMP) 1.1 wrapper
+message UMPMessage {
+  fixed32 data = 1;             // 32/64/96/128-bit UMP (packed as bytes)
+  int64 timestamp = 2;          // MIDI timestamp (microseconds)
+  int32 group = 3;              // UMP Group (0-15)
+}
+
+message PerNoteExpression {
+  int32 note_number = 1;
+  float pressure = 2;           // Poly Pressure [0.0, 1.0]
+  float pitch_bend = 3;         // Per-note pitch bend (cents)
+  float timbre = 4;             // Timbre/CC74 or similar
+}
+
+message DeviceProfile {
+  string name = 1;
+  bool supports_mpe = 2;
+  bool supports_ump = 3;
+  int32 max_polyphony = 4;
+  repeated int32 control_numbers = 5; // Supported CCs
+}
+
+message MPEZone {
+  enum ZoneType {
+    LOWER = 0;
+    UPPER = 1;
+    BOTH = 2;
+  }
+  ZoneType type = 1;
+  int32 channel_range_start = 2;
+  int32 channel_range_end = 3;
+}
+
+// Parse/Route request
+message UMPScheduleRequest {
+  UMPMessage ump = 1;
+  int64 schedule_time_us = 2;   // Microseconds from now
+  int32 priority = 3;           // Higher = more important
+}

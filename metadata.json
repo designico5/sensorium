@@ -1,0 +1,6 @@
+{
+  "name": "Sensorium MIDI & Ableton Diagnostician",
+  "description": "An interactive, real-time MIDI and Ableton Live 12 diagnostics suite. Simulates Windows-MIDI hotplugging, clock-drift checking, OSC-WebSocket bridging, and displays an animated D3-style Mindmap of system health with actionable advice.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

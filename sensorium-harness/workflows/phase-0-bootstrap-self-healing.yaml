@@ -1,0 +1,648 @@
+# Phase 0 Bootstrap Self-Healing Workflow
+# Integrates autonomous agent harness for redundancy and self-healing
+# Generated from SENSORIUM_PLANNING_AGENDA_v3_2026.md with self-healing enhancements
+
+meta:
+  name: "sensorium-phase-0-bootstrap-self-healing"
+  description: "Foundation bootstrap with autonomous agent redundancy, health monitoring, and automatic recovery"
+  target_dir: "sensorium-harness"
+  phases: 7
+  # Enhanced parallel groups with self-healing monitoring
+  parallel_groups:
+    - ["blueprint_adr", "monorepo_setup", "health_monitoring"]
+    - ["nih_plug_scaffold", "automerge_setup", "webtransport_setup", "chaos_monitoring"]
+    - ["ci_formal_verification", "contract_artifacts", "auto_remediation"]
+    - ["eval_harness", "agent_harness_skeleton", "predictive_health"]
+    - ["benchmarks_evals", "validation_monitoring", "supervisor_sidecars"]
+
+steps:
+  # Tag 1: Blueprint & ADR Templates with Health Monitoring
+  - id: blueprint_adr
+    name: "Blueprint & ADR Templates"
+    description: "Create blueprint for Phase 0 and ADR templates for architecture decisions"
+    agent: "architect"
+    skills: ["blueprint", "architecture-decision-records"]
+    tasks:
+      - "Run blueprint skill for 'sensorium-v2 foundation bootstrap with nih-plug, automerge, webtransport, formal verification, eval harness'"
+      - "Output: workflows/phase-0-bootstrap.yaml (this file)"
+      - "Create ADR template at memory/architecture-decisions/template.md"
+      - "Create first ADR: 001-nih-plug-audio-engine.md"
+      - "Create first ADR: 002-automerge-state-sync.md"
+      - "Create first ADR: 003-webtransport-midi.md"
+    # Self-healing: Health monitoring after completion
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "system"
+        metric: "task_completion"
+        threshold: 0.9
+        action: "verify_adrs_complete"
+    verification:
+      - "ls workflows/phase-0-bootstrap.yaml"
+      - "ls memory/architecture-decisions/template.md"
+      - "ls memory/architecture-decisions/001-nih-plug-audio-engine.md"
+      - "ls memory/architecture-decisions/002-automerge-state-sync.md"
+      - "ls memory/architecture-decisions/003-webtransport-midi.md"
+    exit_criteria:
+      - "Blueprint file exists and is valid YAML"
+      - "ADR template exists with standard structure"
+      - "3 initial ADRs created with context/decision/consequences"
+    # Redundancy: Alternative approach if blueprint skill fails
+    redundancy:
+      - approach: "manual_creation"
+        description: "Create blueprint and ADRs manually using templates"
+        agent: "architect"
+        skills: ["architecture-decision-records"]
+    # Self-healing: Automatic retry on failure
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 5
+      retry_on: ["verification_failure", "timeout"]
+
+  - id: monorepo_setup
+    name: "Monorepo Setup"
+    description: "Initialize cargo workspace + npm workspaces + turborepo structure"
+    agent: "devops"
+    skills: ["rust-patterns", "deployment-patterns"]
+    tasks:
+      - "Create Cargo.toml at sensorium-harness/ with workspace config"
+      - "Create package.json at sensorium-harness/ with workspaces config"
+      - "Create turbo.json for turborepo pipeline"
+      - "Create .github/workflows directory structure"
+      - "Create sensorium-v2/ directory for actual implementation"
+      - "Initialize git submodules if needed"
+      - "Configure workspace dependencies for all 9 crates"
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "system"
+        metric: "workspace_health"
+        threshold: 0.8
+        action: "verify_workspace_structure"
+    verification:
+      - "cargo check --workspace 2>&1 | head -5"
+      - "npm ls 2>&1 | head -5"
+      - "ls sensorium-harness/Cargo.toml"
+      - "ls sensorium-harness/package.json"
+      - "ls sensorium-harness/turbo.json"
+    exit_criteria:
+      - "Cargo workspace builds without errors"
+      - "npm workspaces configured"
+      - "turborepo pipeline defined"
+    # Redundancy: Alternative monorepo approaches
+    redundancy:
+      - approach: "simple_workspace"
+        description: "Create basic cargo workspace without npm/turborepo"
+        agent: "devops"
+        skills: ["rust-patterns"]
+      - approach: "nx_monorepo"
+        description: "Use Nx monorepo tooling instead of turborepo"
+        agent: "devops"
+        skills: ["deployment-patterns"]
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 10
+      retry_on: ["verification_failure", "dependency_error", "timeout"]
+
+  # Tag 2: NIH-Plug Scaffold with Chaos Monitoring
+  - id: nih_plug_scaffold
+    name: "NIH-Plug Scaffold"
+    description: "Create NIH-Plug audio plugin crate with VST3/CLAP/Standalone/Vizia features"
+    agent: "audio-engine"
+    skills: ["nih-plug-development", "rust-patterns", "latency-critical-patterns"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "cargo new --lib sensorium-audio"
+      - "Configure Cargo.toml with nih-plug 0.8 features: vst3, clap, standalone, vizia"
+      - "Add dependencies: fundsp 0.11, rubato 0.16, cpal 0.16, ringbuf 0.4"
+      - "Create basic plugin structure: lib.rs, plugin.rs, params.rs, editor.rs"
+      - "Implement minimal AudioPlugin trait"
+      - "Add Vizia GUI skeleton"
+      - "Verify: cargo build --package sensorium-audio --features vst3,clap,standalone,vizia"
+    # Chaos monitoring: Inject failures to test resilience
+    chaos_monitoring:
+      agent: "chaos-engineering"
+      experiment_type: "dependency_failure"
+      target: "nih-plug dependencies"
+      frequency: "post_build"
+      action: "validate_recovery"
+    verification:
+      - "cargo build --package sensorium-audio --release --features vst3,clap,standalone,vizia 2>&1 | tail -10"
+      - "ls target/release/*.dylib target/release/*.so target/release/*.dll 2>/dev/null | head -5"
+    exit_criteria:
+      - "sensorium-audio crate compiles with all 4 features"
+      - "VST3/CLAP/Standalone binaries produced"
+      - "Vizia GUI compiles"
+    # Redundancy: Alternative audio plugin approaches
+    redundancy:
+      - approach: "raw_cpal"
+        description: "Implement audio engine using only cpal without NIH-Plug"
+        agent: "audio-engine"
+        skills: ["rust-patterns"]
+      - approach: "symposium_vst"
+        description: "Use symphony VST wrapper as alternative"
+        agent: "audio-engine"
+        skills: ["rust-patterns"]
+    retry_policy:
+      max_attempts: 5
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 15
+      retry_on: ["verification_failure", "build_error", "dependency_resolution_failure", "timeout"]
+
+  # Tag 3: Automerge 2.0 + Yjs Setup
+  - id: automerge_setup
+    name: "Automerge 2.0 + Yjs Setup"
+    description: "Configure Automerge 2.0 Rust crate with WASM and Yjs 13.6 for Web"
+    agent: "state-sync"
+    skills: ["automerge-crdt-patterns", "rust-patterns", "contract-first-api"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "cargo new --lib sensorium-sync"
+      - "Add automerge 2.0 with features: wasm, serde, bytes"
+      - "Add automerge-repo 2.0 for network sync"
+      - "Create Automerge document management API"
+      - "Create binary format save/load functions"
+      - "Setup wasm-pack for WebAssembly target"
+      - "Create Yjs 13.6 + y-webtransport provider config for frontend"
+      - "Verify: cargo build --package sensorium-sync --features wasm,serde"
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "state"
+        metric: "crdt_health"
+        threshold: 0.85
+        action: "verify_automerge_integrity"
+    verification:
+      - "cargo build --package sensorium-sync --release --features wasm,serde 2>&1 | tail -10"
+      - "wasm-pack build --target web --out-dir pkg sensorium-sync 2>&1 | tail -5"
+    exit_criteria:
+      - "sensorium-sync compiles with WASM features"
+      - "wasm-pack produces .wasm and .js bindings"
+      - "Yjs provider config ready for frontend"
+    # Redundancy: Alternative CRDT approaches
+    redundancy:
+      - approach: "yjs_only"
+        description: "Use Yjs only for both Rust and Web (via wasm)"
+        agent: "state-sync"
+        skills: ["automerge-crdt-patterns"]
+      - approach: "custom_crdt"
+        description: "Implement simple CRDT based on conflict-free primitives"
+        agent: "state-sync"
+        skills: ["rust-patterns"]
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 10
+      retry_on: ["verification_failure", "build_error", "wasm_build_failure", "timeout"]
+
+  # Tag 3: WebTransport + QUIC Setup
+  - id: webtransport_setup
+    name: "WebTransport + QUIC Setup"
+    description: "Configure Quinn QUIC server + WebTransport for MIDI 2.0 over HTTP/3"
+    agent: "midi-2.0"
+    skills: ["webtransport-quic-patterns", "rust-patterns", "latency-critical-patterns"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "cargo new --lib sensorium-midi"
+      - "Add quinn 0.11, webtransport 0.12, rustls 0.23, tokio 1.38"
+      - "Create QUIC server with TLS cert generation (self-signed for dev)"
+      - "Implement WebTransport endpoint handler"
+      - "Add MIDI 2.0 UMP message framing over WebTransport streams"
+      - "Implement 0-RTT reconnect logic"
+      - "Add stream multiplexing for MIDI/SysEx/Metadata"
+      - "Verify: cargo build --package sensorium-midi --features webtransport,quic"
+    # Chaos monitoring: Network chaos experiments
+    chaos_monitoring:
+      agent: "chaos-engineering"
+      experiment_type: "network_partition"
+      target: "webtransport connections"
+      frequency: "post_verification"
+      action: "validate_0rtt_recovery"
+    verification:
+      - "cargo build --package sensorium-midi --release --features webtransport,quic 2>&1 | tail -10"
+      - "cargo test --package sensorium-midi --lib 2>&1 | tail -10"
+    exit_criteria:
+      - "sensorium-midi compiles with QUIC/WebTransport features"
+      - "QUIC server starts and accepts connections"
+      - "WebTransport endpoint responds to connections"
+    # Redundancy: Alternative transport approaches
+    redundancy:
+      - approach: "websocket_fallback"
+        description: "Implement MIDI 2.0 over WebSocket with WebSocket transport"
+        agent: "midi-2.0"
+        skills: ["webtransport-quic-patterns"]
+      - approach: "udp_ multicast"
+        description: "Use UDP multicast for LAN MIDI distribution"
+        agent: "midi-2.0"
+        skills: ["webtransport-quic-patterns"]
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 10
+      retry_on: ["verification_failure", "build_error", "network_setup_failure", "timeout"]
+
+  # Tag 4: CI mit Formal Verification
+  - id: ci_formal_verification
+    name: "CI with Formal Verification"
+    description: "Create GitHub Actions workflow with Kani, Prusti, Creusot integration"
+    agent: "formal-verification"
+    skills: ["formal-verification-audio", "rust-testing", "deployment-patterns"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create .github/workflows/verify.yml"
+      - "Add jobs: build, type-check, lint, test, formal-verification, contract-test"
+      - "Configure Kani model checking for sensorium-audio"
+      - "Configure Prusti deductive verification"
+      - "Configure Creusot Coq proofs"
+      - "Add cargo-kani, cargo-prusti, cargo-creusot installation steps"
+      - "Set up caching for verification artifacts"
+      - "Verify: act run or push to trigger workflow"
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "verification"
+        metric: "proof_success_rate"
+        threshold: 0.8
+        action: "increase_verification_timeout"
+    verification:
+      - "cat .github/workflows/verify.yml | head -50"
+      - "yaml syntax validation"
+    exit_criteria:
+      - "verify.yml exists with all 6 jobs"
+      - "Kani/Prusti/Creusot steps defined"
+      - "Workflow passes syntax validation"
+    # Redundancy: Alternative verification approaches
+    redundancy:
+      - approach: "lite_verification"
+        description: "Use only cargo-clippy and cargo-test for verification"
+        agent: "formal-verification"
+        skills: ["rust-patterns"]
+      - approach: "external_verification"
+        description: "Use external verification service (e.g., GitHub Advanced Security)"
+        agent: "formal-verification"
+        skills: ["deployment-patterns"]
+    retry_policy:
+      max_attempts: 2
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 20
+      retry_on: ["verification_failure", "yaml_syntax_error", "timeout"]
+
+  # Tag 4: Contract Artifacts
+  - id: contract_artifacts
+    name: "Contract Artifacts (Protobuf + OpenAPI)"
+    description: "Generate Protobuf contracts and OpenAPI spec for all 5 pillars"
+    agent: "state-sync"
+    skills: ["contract-first-api", "api-design"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create specs/ directory"
+      - "Write audio-engine.proto (AudioCallback, Parameter, Transport)"
+      - "Write midi-2.0.proto (UMPMessage, PerNoteExpression, DeviceProfile)"
+      - "Write state-sync.proto (AutomergeOp, SyncMessage, DocumentPatch)"
+      - "Write visual-engine.proto (RenderCommand, GPUBuffer, NodeTransform)"
+      - "Write local-ai.proto (InferenceRequest, FunctionCall, MorphParams)"
+      - "Write openapi.yaml for REST API (Web Dashboard)"
+      - "Add prost/tonic build.rs for code generation"
+      - "Verify: cargo build generates Rust types, npm generates TS types"
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "contracts"
+        metric: "contract_drift"
+        threshold: 0.1  # Low drift is good
+        action: "regenerate_contracts"
+    verification:
+      - "ls specs/*.proto specs/openapi.yaml"
+      - "cargo build --package sensorium-audio 2>&1 | grep -E 'prost|tonic' | head -5"
+    exit_criteria:
+      - "6 contract files created"
+      - "Protobuf generates Rust types via build.rs"
+      - "OpenAPI generates TypeScript types"
+    # Redundancy: Alternative contract approaches
+    redundancy:
+      - approach: "openapi_only"
+        description: "Use OpenAPI 3.0 for all contracts (no Protobuf)"
+        agent: "state-sync"
+        skills: ["api-design"]
+      - approach: "graphql_contracts"
+        description: "Use GraphQL schema as contract definition language"
+        agent: "state-sync"
+        skills: ["api-design"]
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 5
+      retry_on: ["verification_failure", "build_error", "codegen_failure", "timeout"]
+
+  # Tag 5: Eval Harness Setup
+  - id: eval_harness
+    name: "Eval Harness Setup"
+    description: "Create eval-driven development framework with pass@k metrics"
+    agent: "chaos-engineering"
+    skills: ["eval-harness", "eval-driven-development", "tdd-workflow"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create evals/ directory with M1-M7 eval definitions"
+      - "Create hooks/eval-runner.sh with capability/regression/report modes"
+      - "Define M1 eval: audio-callback-latency.md (p99<0.5ms, Kani proof)"
+      - "Define M2 eval: contract-generation.md (Protobuf gen, Automerge sync<5ms)"
+      - "Define M3 eval: health-prediction.md (Isolation Forest, precision>80%)"
+      - "Define M4 eval: gpu-compute-throughput.md (FFT<0.1ms, 10k nodes)"
+      - "Define M5 eval: llm-inference-speed.md (llamafile<500ms, hot reload<200ms)"
+      - "Define M6 eval: neural-morph-latency.md (RAVE<10ms)"
+      - "Define M7 eval: production-readiness.md (24h soak, chaos MTTR<500ms)"
+      - "Verify: bash hooks/eval-runner.sh M1 capability"
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "evals"
+        metric: "eval_success_rate"
+        threshold: 0.9
+        action: "adjust_eval_difficulty"
+    verification:
+      - "bash hooks/eval-runner.sh M1 report 2>&1"
+      - "cat eval-reports/M1/report.json"
+    exit_criteria:
+      - "7 eval definition files created"
+      - "eval-runner.sh executes and produces JSON reports"
+      - "Gate M1 capability evals defined"
+    # Redundancy: Alternative eval approaches
+    redundancy:
+      - approach: "simple_passfail"
+        description: "Use simple pass/fail evals without pass@k metrics"
+        agent: "chaos-engineering"
+        skills: ["eval-harness"]
+      - approach: "human_in_the_loop"
+        description: "Incorporate human evaluation for complex assessments"
+        agent: "chaos-engineering"
+        skills: ["eval-harness"]
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 5
+      retry_on: ["verification_failure", "script_error", "timeout"]
+
+  # Tag 5: Agent Harness Skeleton
+  - id: agent_harness_skeleton
+    name: "Agent Harness Skeleton"
+    description: "Create 8 specialized agent runners with schema-first I/O"
+    agent: "architect"
+    skills: ["agent-harness-construction", "autonomous-agent-harness"]
+    depends_on: ["monorepo_setup"]
+    tasks:
+      - "Create agents/ directory structure for 8 agents"
+      - "Create agent markdown definitions (already done)"
+      - "Create run.sh for each agent with schema-first JSON I/O"
+      - "Implement recovery contracts for each agent"
+      - "Add agents to harness registry"
+      - "Verify: echo '{\"task\":\"build\"}' | bash agents/audio-engine/run.sh"
+    # Self-healing: Agent health monitoring
+    health_checks:
+      - agent: "health-assessor"
+        dimension: "agents"
+        metric: "agent_responsiveness"
+        threshold: 0.95
+        action: "restart_unresponsive_agents"
+    verification:
+      - "echo '{\"task\":\"build\"}' | bash agents/audio-engine/run.sh 2>&1 | head -20"
+      - "ls agents/*/run.sh"
+    exit_criteria:
+      - "8 agent run.sh files exist and are executable"
+      - "Each accepts JSON stdin, produces JSON stdout"
+      - "Recovery contracts implemented"
+    # Redundancy: Alternative agent approaches
+    redundancy:
+      - approach: "functional_agents"
+        description: "Use functional programming approach for agent implementation"
+        agent: "architect"
+        skills: ["agent-harness-construction"]
+      - approach: "actor_model_agents"
+        description: "Implement agents using actor model (e.g., Actix)"
+        agent: "architect"
+        skills: ["agent-harness-construction"]
+    retry_policy:
+      max_attempts: 3
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 5
+      retry_on: ["verification_failure", "script_error", "timeout"]
+
+  # Tag 6-7: Erste Benchmarks + Evals with Validation Monitoring
+  - id: benchmarks_evals
+    name: "First Benchmarks + Evals"
+    description: "Run initial Criterion benchmarks and execute M1 eval suite"
+    agent: "audio-engine"
+    skills: ["criterion", "latency-critical-systems", "eval-harness"]
+    depends_on: ["nih_plug_scaffold", "eval_harness"]
+    tasks:
+      - "Add criterion 0.5 to sensorium-audio dev-dependencies"
+      - "Create benches/audio_callback_latency.rs"
+      - "Implement audio callback benchmark with p50/p95/p99 tracking"
+      - "Run: cargo bench --package sensorium-audio"
+      - "Run: bash hooks/eval-runner.sh M1 capability"
+      - "Run: bash hooks/eval-runner.sh M1 regression"
+      - "Run: bash hooks/eval-runner.sh M1 report"
+      - "Verify pass@3 > 90% for capability, pass^3 = 100% for regression"
+    # Validation monitoring: Continuous validation of results
+    validation_monitoring:
+      agent: "health-assessor"
+      dimension: "performance"
+      metric: "benchmark_regression"
+      threshold: 0.1  # Max 10% regression allowed
+      action: "investigate_performance_degradation"
+    verification:
+      - "cargo bench --package sensorium-audio 2>&1 | tail -20"
+      - "bash hooks/eval-runner.sh M1 report 2>&1"
+      - "cat eval-reports/M1/report.json"
+    exit_criteria:
+      - "Criterion benchmarks run and produce HTML reports"
+      - "M1 eval report generated with capability_count > 0"
+      - "Baseline established for regression detection"
+    # Redundancy: Alternative benchmarking approaches
+    redundancy:
+      - approach: "microbenchmark_crate"
+        description: "Use criterion alternative like bencher or hyperfine"
+        agent: "audio-engine"
+        skills: ["criterion"]
+      - approach: "manual_timing"
+        description: "Use manual timing with std::time::Instant"
+        agent: "audio-engine"
+        skills: ["rust-patterns"]
+    retry_policy:
+      max_attempts: 2
+      backoff_strategy: "exponential"
+      backoff_base_seconds: 10
+      retry_on: ["verification_failure", "benchmark_error", "timeout"]
+
+  # Additional Self-Healing Steps (Run Continuously)
+  - id: health_monitoring
+    name: "Continuous Health Monitoring"
+    description: "Monitor system health across all dimensions and trigger self-healing"
+    agent: "health-assessor"
+    skills: ["health-assessor-patterns"]  # This would be a custom skill
+    tasks:
+      - "Initialize health monitoring for 5 dimensions: Audio, MIDI, Network, System, State"
+      - "Set up metric collection: latency, error rates, resource usage, throughput"
+      - "Configure alert thresholds for each dimension"
+      - "Create health dashboard in memory/learned-patterns/health-dashboard.md"
+      - "Run continuous monitoring loop (every 30 seconds)"
+    verification:
+      - "ls memory/learned-patterns/health-dashboard.md"
+    exit_criteria:
+      - "Health monitoring system operational"
+      - "Alert thresholds configured for all dimensions"
+      - "Dashboard updated with current metrics"
+    # This step runs continuously alongside others
+    continuous: true
+
+  - id: chaos_monitoring
+    name: "Continuous Chaos Engineering"
+    description: "Continuously inject failures to validate system resilience"
+    agent: "chaos-engineering"
+    skills: ["chaos-engineering-patterns"]  # Custom skill
+    tasks:
+      - "Initialize chaos engineering experiments"
+      - "Configure experiment types: dependency_failure, network_partition, memory_pressure, cpu_stress"
+      - "Set up experiment schedule (every 5 minutes during active work)"
+      - "Create experiment log in memory/learned-patterns/chaos-experiments.md"
+      - "Run chaos injection and validation loop"
+    verification:
+      - "ls memory/learned-patterns/chaos-experiments.md"
+    exit_criteria:
+      - "Chaos engineering system operational"
+      - "Experiment types configured"
+      - "Log updated with experiment results"
+    continuous: true
+
+  - id: auto_remediation
+    name: "Automated Remediation System"
+    description: "Monitor for issues and automatically apply remediation strategies"
+    agent: "chaos-engineering"
+    skills: ["automated-remediation-patterns"]  # Custom skill
+    tasks:
+      - "Initialize automated remediation system"
+      - "Define escalation ladder: retry -> fallback -> alert -> human intervention"
+      - "Set up remediation triggers based on health metrics and chaos results"
+      - "Create remediation playbook in memory/learned-patterns/remediation-playbook.md"
+      - "Run continuous monitoring and remediation loop"
+    verification:
+      - "ls memory/learned-patterns/remediation-playbook.md"
+    exit_criteria:
+      - "Automated remediation system operational"
+      - "Escalation ladder defined"
+      - "Playbook updated with remediation strategies"
+    continuous: true
+
+  - id: predictive_health
+    name: "Predictive Health Analysis"
+    description: "Use ML to predict potential issues before they occur"
+    agent: "local-ai"
+    skills: ["candle-local-llm", "predictive-analytics-patterns"]  # Custom skills
+    tasks:
+      - "Initialize predictive health system"
+      - "Set up data collection from health monitors and chaos experiments"
+      - "Train isolation forest model for anomaly detection"
+      - "Configure prediction horizon (30 seconds, 1 minute, 5 minutes)"
+      - "Create prediction logs in memory/learned-patterns/predictions.md"
+      - "Run continuous prediction and alerting loop"
+    verification:
+      - "ls memory/learned-patterns/predictions.md"
+    exit_criteria:
+      - "Predictive health system operational"
+      - "ML model trained and ready for inference"
+      - "Prediction logs updated"
+    continuous: true
+
+  - id: supervisor_sidecars
+    name: "Supervisor and Sidecar System"
+    description: "Manage isolated sidecar processes for critical services"
+    agent: "release-automation"
+    skills: ["release-automation", "sidecar-patterns"]  # Custom skills
+    tasks:
+      - "Initialize supervisor system for sidecar management"
+      - "Configure sidecars for: health monitoring, chaos engineering, predictive analysis"
+      - "Set up process isolation and resource limits for each sidecar"
+      - "Create sidecar configurations in sensorium-harness/sidecars/"
+      - "Run supervisor loop managing sidecar lifecycles"
+    verification:
+      - "ls sensorium-harness/sidecars/"
+    exit_criteria:
+      - "Supervisor system operational"
+      - "Sidecar configurations created"
+      - "Supervisor loop running"
+    continuous: true
+
+  # Dependency Graph
+  dependencies:
+    blueprint_adr: []
+    monorepo_setup: []
+    nih_plug_scaffold: [monorepo_setup]
+    automerge_setup: [monorepo_setup]
+    webtransport_setup: [monorepo_setup]
+    ci_formal_verification: [monorepo_setup]
+    contract_artifacts: [monorepo_setup]
+    eval_harness: [monorepo_setup]
+    agent_harness_skeleton: [monorepo_setup]
+    benchmarks_evals: [nih_plug_scaffold, eval_harness]
+    # Continuous steps have no dependencies but run alongside
+    health_monitoring: []
+    chaos_monitoring: []
+    auto_remediation: []
+    predictive_health: []
+    supervisor_sidecars: []
+
+  # Parallel Execution Groups (enhanced with self-healing)
+  parallel_groups:
+    - [blueprint_adr, monorepo_setup, health_monitoring]
+    - [nih_plug_scaffold, automerge_setup, webtransport_setup, chaos_monitoring]
+    - [ci_formal_verification, contract_artifacts, auto_remediation]
+    - [eval_harness, agent_harness_skeleton, predictive_health]
+    - [benchmarks_evals, validation_monitoring, supervisor_sidecars]
+
+  # Rollback Strategy (enhanced)
+  rollback:
+    monorepo_setup: "git clean -fd sensorium-harness/"
+    nih_plug_scaffold: "rm -rf sensorium-audio/"
+    automerge_setup: "rm -rf sensorium-sync/"
+    webtransport_setup: "rm -rf sensorium-midi/"
+    ci_formal_verification: "rm .github/workflows/verify.yml"
+    contract_artifacts: "rm -rf specs/"
+    eval_harness: "rm -rf evals/ hooks/eval-runner.sh"
+    agent_harness_skeleton: "rm -rf agents/*/run.sh"
+    benchmarks_evals: "rm -rf target/criterion/ eval-reports/M1/"
+    # Continuous steps: stop processes
+    health_monitoring: "pkill -f 'health-assessor' || true"
+    chaos_monitoring: "pkill -f 'chaos-engineering' || true"
+    auto_remediation: "pkill -f 'chaos-engineering-remediation' || true"
+    predictive_health: "pkill -f 'local-ai-predictive' || true"
+    supervisor_sidecars: "pkill -f 'release-automation-supervisor' || true"
+
+  # Model Tier Assignments
+  model_tiers:
+    strongest: [blueprint_adr, ci_formal_verification, contract_artifacts]
+    default: [monorepo_setup, nih_plug_scaffold, automerge_setup, webtransport_setup, eval_harness, agent_harness_skeleton, benchmarks_evals]
+    # Continuous steps get default tier unless specified
+    health_monitoring: default
+    chaos_monitoring: default
+    auto_remediation: default
+    predictive_health: strongest  # Uses local-ai which needs strong model
+    supervisor_sidecars: default
+
+  # Self-Healing Configuration
+  self_healing:
+    enabled: true
+    health_check_interval_seconds: 30
+    chaos_experiment_interval_seconds: 300
+    remediation_check_interval_seconds: 10
+    prediction_interval_seconds: 60
+    supervisor_check_interval_seconds: 5
+    max_concurrent_recoveries: 3
+    recovery_timeout_seconds: 300
+    escalation_levels:
+      - level: 1
+        action: "retry_with_backoff"
+        max_attempts: 3
+      - level: 2
+        action: "switch_to_redundant_approach"
+        max_attempts: 2
+      - level: 3
+        action: "alert_human_operator"
+        max_attempts: 1
+      - level: 4
+        action: "rollback_to_last_known_good"
+        max_attempts: 1

@@ -1,0 +1,51 @@
+[package]
+name = "sensorium-audio"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["standalone"]
+vst3 = ["nih-plug-core/vst3"]
+clap = ["nih-plug-core/clap"]
+standalone = ["nih-plug-core/standalone"]
+vizia = ["vizia"]
+verification = ["proptest", "criterion"]
+
+[dependencies]
+# NIH-Plug Ecosystem (split crates)
+nih-plug-core = { workspace = true, features = [] }
+nih-plug-derive = { workspace = true }
+vizia = { workspace = true, optional = true }
+fundsp = { workspace = true }
+rubato = { workspace = true }
+cpal = { workspace = true }
+ringbuf = { workspace = true, features = ["std"] }
+raw-window-handle = { workspace = true, optional = true }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Testing
+proptest = { workspace = true, optional = true }
+criterion = { workspace = true, optional = true }
+
+[dev-dependencies]
+nih-plug-core = { workspace = true, features = ["vst3", "clap", "standalone"] }
+nih-plug-derive = { workspace = true }
+vizia = { workspace = true }
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+# Verification tools installed via: cargo install kani-verifier cargo-prusti
+# Not as dependencies - they are compiler plugins
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+[profile.bench]
+debug = true

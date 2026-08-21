@@ -1,0 +1,95 @@
+[workspace]
+resolver = "2"
+members = [
+  "sensorium-audio",
+  "sensorium-midi",
+  "sensorium-sync",
+  "sensorium-visual",
+  "sensorium-ai",
+  "sensorium-dsp",
+  "sensorium-release",
+  "sensorium-chaos",
+  "sensorium-visual-shaders",
+]
+
+[workspace.dependencies]
+# --- Audio Engine (NIH-Plug Ecosystem) ---
+# NIH-Plug is split into multiple crates on crates.io
+nih-plug-core = "0.1"
+nih-plug-derive = "0.1"
+vizia = "0.4"
+fundsp = "0.23"
+rubato = "5.0"
+cpal = { version = "0.18", features = ["asio", "jack", "wasapi", "coreaudio", "pipewire", "pulseaudio"] }
+ringbuf = "0.5"
+midly = "0.6"               # SMF + MIDI 1.0
+midir = "0.9"               # MIDI I/O
+
+# --- State Sync (Automerge 2.0) ---
+automerge = { version = "2.0", features = ["wasm", "serde", "bytes"] }
+automerge-repo = "2.0"
+yjs = "13.6"                # npm package für Web
+y-webtransport = "0.1"      # WebTransport Provider für Yjs
+
+# --- Network (WebTransport/QUIC) ---
+quinn = "0.11"
+webtransport = "0.12"
+rustls = "0.23"
+tokio = { version = "1.38", features = ["full", "rt-multi-thread"] }
+
+# --- GPU/Visual (WebGPU) ---
+wgpu = { version = "0.19", features = ["wgsl", "fragile-send-sync-non-atomic-wasm"] }
+pollster = "0.3"
+bytemuck = "1.14"
+
+# --- Local AI (llamafile + candle) ---
+candle = { version = "0.6", features = ["cuda", "metal", "cublas"] }
+candle-nn = "0.6"
+candle-transformers = "0.6"
+tokenizers = "0.15"
+llamafile = "0.8"           # Single-File Deployment
+
+# --- Formal Verification ---
+kani = "0.33"               # Model Checking
+prusti = "0.12"             # Deductive Verification
+creusot = "0.10"            # Deductive Verification
+
+# --- Observability (OpenTelemetry) ---
+tracing = { version = "0.1", features = ["std"] }
+tracing-opentelemetry = "0.24"
+opentelemetry = { version = "0.23", features = ["metrics", "trace"] }
+opentelemetry-prometheus = "0.22"
+metrics = { version = "0.21", features = ["exponential_histogram"] }
+metrics-exporter-prometheus = "0.13"
+
+# --- Testing & Quality ---
+proptest = "1.2"            # Property-Based Testing
+quickcheck = "1.0"
+criterion = "0.5"           # Benchmarking
+dhat = "0.3"                # Heap Profiling
+
+# --- Developer Experience ---
+cargo-dist = "0.1"          # Automated Releases
+cargo-watch = "8.4"         # Hot Reload
+evcxr = "0.16"              # Rust REPL
+
+# --- Memory/Async ---
+bumpalo = "3.14"            # Arena Allocator
+slotmap = "1.0"             # Slot Map für Entity Management
+crossbeam = "0.8"           # Lock-free Data Structures
+parking_lot = "0.12"        # Faster Mutex/RwLock
+raw-window-handle = "0.6"   # Window handle abstraction
+
+# --- Protobuf / Contract First ---
+prost = "0.12"
+tonic = "0.10"
+prost-types = "0.12"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+[profile.bench]
+debug = true

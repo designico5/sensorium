@@ -1,0 +1,19 @@
+[package]
+name = "sensorium-audio"
+version = "0.1.0"
+edition = "2021"
+ 
+[dependencies]
+# Existing dependencies...
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ 
+# New dependencies for UMP parsing and error handling
+thiserror = "1.0"
+byteorder = "1.5"
+num_enum = "0.7"
+
+# New dependencies for the audio engine core
+fundsp = { version = "0.11", features = ["default"] }
+rubato = { version = "0.16", features = ["fft_resampler"] }
+cpal = "0.15"

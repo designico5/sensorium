@@ -1,0 +1,76 @@
+name: Phase 6 — Features + Live Performance
+description: MIDI Learn 2.0, Panic Button, Session View, Macro Surface, Mod Matrix, Morph Controller, Performance Mode, Dual Screen, Neural Audio, Local AI Assistant
+
+ steps:
+  - name: MIDI Learn 2.0
+    agent: midi-2.0
+    tasks:
+      - Per-Note Expression + MPE
+      - Profile-Mapping (Push 3, Launchpad)
+      - Touch-Native, Visual Feedback
+
+  - name: Panic Button
+    agent: audio-engine
+    tasks:
+      - Hardware + Software Trigger
+      - < 1ms All Notes Off + CC Reset
+      - Stage-Ready, Foolproof
+
+  - name: Session View
+    agent: audio-engine
+    tasks:
+      - Clip/Scene Launcher
+      - Follow Actions, Quantized Launch
+      - Ableton Link Sync
+
+  - name: Macro Surface
+    agent: visual-engine
+    tasks:
+      - 16 Macros, Smooth Interpolation (fundsp Smoother)
+      - Morphing, Performance Mapping
+
+  - name: Mod Matrix
+    agent: visual-engine
+    tasks:
+      - Touch-Native, Visual Patch Cables
+      - Instanced Rendering für Kabel
+      - Drag-to-Connect, Real-time
+
+  - name: Morph Controller
+    agent: local-ai
+    tasks:
+      - Neural Morphing via candle (RAVE Latent Interpolation)
+      - Expressive, Continuous Control
+      - < 10ms Interpolation
+
+  - name: Performance Mode
+    agent: visual-engine
+    tasks:
+      - Fullscreen, 80px Targets, Glove Mode
+      - High Contrast, Sunlight-Readable
+      - Sweat-Tolerant UI
+
+  - name: Dual Screen
+    agent: visual-engine
+    tasks:
+      - Performer View + Audience View
+      - WebGPU Shared Rendering
+      - Synced via SharedArrayBuffer
+
+  - name: Neural Audio + Local AI Assistant
+    agent: local-ai
+    tasks:
+      - candle + burn für RAVE/DDSP Synthesis
+      - New Timbres, Neural Synthesis
+      - Voice/Chat Control, Context Aware
+
+ gates:
+  - id: M6
+    criteria:
+      - MIDI 2.0: MPE + Per-Note Expression funktional
+      - Session View: Ableton Link Sync, Follow Actions
+      - Neural Morph: RAVE Latent Space Interpolation < 10ms
+      - Performance Mode: Stage-Ready (Sunlight, Sweat, Gloves Test)
+      - Dual Screen: Synced via SharedArrayBuffer + WebGPU
+      - Panic Button: < 1ms All Notes Off
+      - Eval Report: pass@3 > 90% für alle Feature Evals

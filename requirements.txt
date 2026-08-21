@@ -1,0 +1,51 @@
+# ==============================================================================
+# SENSORIUM OS v2.0 - SYSTEM & RUNTIME REQUIREMENTS SPECIFICATION
+# Urheber & Entwickler: Nico Mädler (icon.maedler@gmail.com)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. CORE SYSTEM RUNTIMES (WINDOWS 10 / 11 64-BIT)
+# ------------------------------------------------------------------------------
+# Node.js LTS Runtime (Required for local server & JS Engine)
+node>=18.16.0
+
+# Package Manager (Included with Node.js)
+npm>=9.5.0
+
+# Python 3.x Engine (Required for Ableton Live Remote Script Compilation & OSC)
+python>=3.9.0,<=3.11.9
+
+# ------------------------------------------------------------------------------
+# 2. PYTHON SYSTEM DEPENDENCIES (FOR ABLETON & OSC MIDI ENGINE)
+# ------------------------------------------------------------------------------
+python-osc>=1.8.3
+mido>=1.3.0
+python-rtmidi>=1.5.8
+
+# ------------------------------------------------------------------------------
+# 3. DAW & DIGITAL AUDIO WORKSTATION INTEGRATION
+# ------------------------------------------------------------------------------
+# Ableton Live 10, 11, or 12 (Standard / Suite)
+# Remote Script Target Directory:
+# %USERPROFILE%\Documents\Ableton\User Library\Remote Scripts\Sensorium_Bridge
+
+# ------------------------------------------------------------------------------
+# 4. NETWORK & FIREWALL PORT REQUIREMENTS
+# ------------------------------------------------------------------------------
+# TCP Port 3000 : Web Application UI & Express Local Server
+# UDP Port 8000 : Sensorium High-Speed OSC Protocol Transmission
+# UDP Port 9000 : Hardware Sync & MIDI Timecode (MTC)
+# Localhost Loopback : 127.0.0.1 / 0.0.0.0
+
+# ------------------------------------------------------------------------------
+# 5. RECOMMENDED SYSTEM BROWSERS FOR KIOSK / APP-MODE
+# ------------------------------------------------------------------------------
+# Microsoft Edge (Pre-installed on Win 10/11 - msedge --app=http://localhost:3000)
+# Google Chrome (Optional - chrome --app=http://localhost:3000)
+
+# ------------------------------------------------------------------------------
+# 6. AUTOMATED DEPLOYMENT & AUTO-HEALING SCRIPTS INCLUDED IN BUNDLE
+# ------------------------------------------------------------------------------
+# START_STANDALONE.bat                      : 1-Click Zero-Config App Launcher
+# Sensorium_SelfHealing_Windows_Builder.bat : Full System Doctor, Defender & Firewall Configurator
+# Sensorium_Win11_Doctor.ps1                : PowerShell DAW-Safe Runtime Repair

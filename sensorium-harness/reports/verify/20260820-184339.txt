@@ -1,0 +1,9 @@
+VERIFICATION REPORT
+==================
+Time: 2026-08-20T18:43:39Z
+Mode: benchmark
+
+[benchmark]
+📊 Post-Merge Benchmark + Regression Gate
+🎵 Running audio benchmarks...
+  FAIL

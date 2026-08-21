@@ -1,0 +1,29 @@
+name: Chaos Engineering
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM
+
+jobs:
+  chaos-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Chaos Tests
+        run: |
+          cargo test --package sensorium-chaos -- chaos_matrix
+      - name: MTTR Report
+        run: |
+          # Parse MTTR logs and enforce < 500ms limit
+          cargo test --package sensorium-chaos -- mttr_validation
+
+  soak-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 24h Soak Test
+        run: |
+          # In production: run in background, upload results after 24h
+          echo "Soak test would run for 24 hours in production"
+          # Simulate with shorter test for CI
+          cargo test --package sensorium-chaos -- soak_simulated

@@ -1,0 +1,1 @@
+/mnt/c/Users/Administrator/Videos/sensorium/sensorium-harness/target/release/libsensorium_visual_shaders.rlib: /mnt/c/Users/Administrator/Videos/sensorium/sensorium-harness/sensorium-visual-shaders/src/lib.rs

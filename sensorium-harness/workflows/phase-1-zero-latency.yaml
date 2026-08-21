@@ -1,0 +1,66 @@
+name: Phase 1 — Zero-Latency Core
+description: Audio Engine Core (nih-plug + fundsp + rubato), MIDI 2.0 UMP Parser, WebTransport MIDI, Musical Time Engine, GPU-Audio Pipeline, Formale Verification Start
+
+ steps:
+  - name: Audio Engine Core
+    agent: audio-engine
+    tasks:
+      - nih-plug Plugin Trait implementieren (SensoriumParams)
+      - fundsp DSP Graph (Filter + Reverb + Gain)
+      - rubato Resampler integrieren
+      - Ringbuf Audio↔GUI Kommunikation
+    tdd:
+      red: Callback-Latenz Test (Mock)
+      green: DSP-Implementation
+      refactor: Hot-Path-Bereinigung
+
+  - name: MIDI 2.0 UMP Parser
+    agent: midi-2.0
+    tasks:
+      - midly + Custom UMP 1.1 Parser (256 Ch, Per-Note, NRPN)
+      - Zero-Copy Route-Logik
+    tdd:
+      red: Parse/Route < 10µs Test
+      green: Zero-Copy Parser
+
+  - name: WebTransport MIDI
+    agent: midi-2.0
+    tasks:
+      - QUIC Streams mit 0-RTT Reconnect
+      - Stream-Prioritierung + Multiplexing
+      - WebSocket-Fallback
+    tdd:
+      red: Reconnect < 50ms Test
+      green: Connection Pool
+
+  - name: Musical Time Engine
+    agent: audio-engine
+    tasks:
+      - Sample-genaue Timing
+      - Ableton Link-Integration
+      - Transport-State-Machine
+
+  - name: GPU-Audio Pipeline
+    agent: visual-engine
+    tasks:
+      - wgpu Compute Shader (FFT, Filter, Analysis)
+      - Zero-Copy Audio→GPU Buffer
+    tdd:
+      red: FFT<0.1ms GPU Test
+      green: Compute Pipeline
+
+  - name: Formal Verification Start
+    agent: formal-verification
+    tasks:
+      - Kani Proof: No-Panic, No-Alloc, Bounds
+      - CI-Gate-Integration
+
+ gates:
+  - id: M1
+    criteria:
+      - Audio Callback P99 < 0.5ms
+      - MIDI 2.0 UMP Parse + Route < 10µs
+      - VST3/CLAP/Standalone Build erfolgreich
+      - Kani Proof: Audio Callback No-Panic + No-Alloc
+      - WebTransport: 0-RTT Reconnect < 50ms
+      - pass@3 = 100% für M1 Capability Evals

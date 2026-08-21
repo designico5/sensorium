@@ -1,0 +1,28 @@
+[package]
+name = "sensorium"
+version = "2.0.0"
+description = "Sensorium Windows MIDI & Ableton OSC Bridge Client"
+authors = ["Sensorium Dev Team"]
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2.0.0-rc", features = [] }
+tauri-build = "2.0.0-rc"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+axum = { version = "0.7" }
+tower-http = { version = "0.5", features = ["cors"] }
+rosc = "0.10" # OSC message parsing
+windows = { version = "0.52", features = [
+    "Win32_Devices_HumanInterfaceDevice",
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Media_Audio", # MIDI API
+] }
+futures-util = "0.3"
+crossbeam-channel = "0.5"
+
+[build-dependencies]
+tauri-build = "2.0.0-rc"

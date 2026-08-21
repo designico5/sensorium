@@ -1,0 +1,48 @@
+name: Phase 4 — Resource-Optimal Scaling
+description: WebGPU Compute Audio, Instanced Visual Rendering, WebTransport/QUIC Network, Resource Budget Enforcement, Memory Pool Arena
+
+ steps:
+  - name: WebGPU Compute Audio
+    agent: visual-engine
+    tasks:
+      - wgpu + pollster Compute Shader (FFT, Filter, Analysis)
+      - Zero-Copy Audio→GPU Pipeline
+      - Fallback: wgpu Software + candle CPU
+
+  - name: Instanced Visual Rendering
+    agent: visual-engine
+    tasks:
+      - wgpu Instanced Draw Calls (10k Nodes = 1 Draw)
+      - Frustum Culling + LOD + Batch
+      - Performance-Profiling (Renderdoc)
+
+  - name: WebTransport/QUIC Network
+    agent: midi-2.0
+    tasks:
+      - quinn Server + webtransport Client
+      - Multiplexing, 0-RTT, Stream-Prioritäten
+      - Backpressure-Implementierung
+
+  - name: Resource Budget Enforcement
+    agent: audio-engine
+    tasks:
+      - Atomic O(1) Alloc/Dealloc Tracking
+      - Auto-Degradation bei Pressure
+      - Budget pro Subsystem, Hard Limits
+
+  - name: Memory Pool Arena
+    agent: formal-verification
+    tasks:
+      - bumpalo + slotmap für Zero-Alloc Hot Paths
+      - Arena pro Frame, No Fragmentation
+      - Kani Proof: Zero Alloc in Audio Callback
+
+ gates:
+  - id: M4
+    criteria:
+      - WebGPU Compute: FFT 4096 < 0.1ms GPU Time
+      - Visual: 10.000 Nodes @ 60fps < 2ms GPU
+      - WebTransport: 1000 Concurrent Streams < 50MB RAM
+      - Resource Budget: O(1) Alloc/Dealloc, Zero Leaks (dhat)
+      - Auto-Degradation: Graceful Quality Scaling
+      - Memory Pool: Zero Alloc in Audio Callback (Kani Proof)

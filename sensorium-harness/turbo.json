@@ -1,0 +1,48 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "target/**", "pkg/**"],
+      "cache": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**", "target/**"],
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "generate:types": {
+      "dependsOn": ["^build"],
+      "outputs": ["src/generated/**", "types/**"],
+      "cache": true
+    },
+    "bench": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "verify": {
+      "dependsOn": ["build", "test", "lint", "typecheck"],
+      "cache": false
+    }
+  },
+  "globalDependencies": [
+    "Cargo.toml",
+    "package.json",
+    "tsconfig.json"
+  ],
+  "globalEnv": [
+    "RUST_BACKTRACE",
+    "RUST_LOG"
+  ]
+}

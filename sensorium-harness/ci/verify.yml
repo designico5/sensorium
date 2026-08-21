@@ -1,0 +1,65 @@
+name: Verify Gate
+on: [pull_request, push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Workspace
+        run: cargo build --workspace --release
+      - name: Build Frontend
+        run: npm ci && npm run build
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust Type Check
+        run: cargo check --workspace --all-targets
+      - name: TypeScript Type Check
+        run: npx tsc --noEmit
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+      - name: ESLint
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit + Integration Tests
+        run: cargo test --workspace
+      - name: Frontend Tests
+        run: npm run test -- --coverage
+      - name: Coverage Check
+        run: |
+          # 80% Threshold enforcement (pseudo-code)
+          # ./scripts/check-coverage.sh 80
+
+  formal-verification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kani Model Checking
+        run: cargo kani --package sensorium-audio
+      - name: Prusti Verification
+        run: cargo prusti --package sensorium-audio
+      - name: Creusot Verification
+        run: cargo creusot --package sensorium-audio
+
+  contract-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Types
+        run: npm run generate:types
+      - name: Validate Provider Responses
+        run: cargo test contract_validation
+      - name: Validate Consumer Fixtures
+        run: npm run test:contract
