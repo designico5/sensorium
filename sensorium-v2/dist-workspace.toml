@@ -1,0 +1,77 @@
+# cargo-dist configuration for Sensorium
+# See: https://opensource.axo.dev/cargo-dist/
+
+[dist]
+# The preferred cargo-dist version to use
+cargo-dist-version = "0.1.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "msi"]
+# Target platforms to build for
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwin"]
+# Publish jobs to run in CI
+publish-jobs = ["./publish-vst3", "./publish-clap"]
+# Allow customization of the install script
+allow-dirty = ["ci"]
+# Whether to consider the package "prerelease"
+prereleases = false
+# Whether to auto-convert non-SPDX license expressions
+auto-convert = false
+
+# Custom publish jobs for audio plugin formats
+[dist.publish-jobs.publish-vst3]
+description = "Publish VST3 bundles"
+artifacts = ["sensorium-vst3-*"]
+
+[dist.publish-jobs.publish-clap]
+description = "Publish CLAP bundles"
+artifacts = ["sensorium-clap-*"]
+
+# GitHub-specific settings
+[dist.github]
+# Create a GitHub release
+release = true
+# Draft the release
+draft = true
+# Prerelease tag pattern
+prerelease-pattern = "-alpha.*|-beta.*|-rc.*"
+# Additional artifacts to include
+additional-artifacts = ["README.md", "LICENSE"]
+
+# Windows-specific settings
+[dist.windows]
+# Use WiX for MSI installer
+wix = true
+
+# macOS-specific settings  
+[dist.macos]
+# Sign the app
+sign = false
+# Notarize the app
+notarize = false
+
+# Linux-specific settings
+[dist.linux]
+# Use AppImage for Linux
+appimage = true
+
+# Artifact settings
+[dist.artifacts]
+# Include VST3 bundle
+[[dist.artifacts.vst3]]
+name = "sensorium-vst3"
+description = "VST3 plugin bundle"
+path = "target/release/vst3/sensorium.vst3"
+
+# Include CLAP bundle
+[[dist.artifacts.clap]]
+name = "sensorium-clap"
+description = "CLAP plugin bundle"
+path = "target/release/clap/sensorium.clap"
+
+# Include standalone app
+[[dist.artifacts.standalone]]
+name = "sensorium-standalone"
+description = "Standalone application"
+path = "target/release/sensorium"

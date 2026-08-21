@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package sensorium.audio;
+
+message AudioCallback {
+  int64 sample_index = 1;
+  int32 channel_count = 2;
+  repeated float input = 3;
+  repeated float output = 4;
+}
+
+message Parameter {
+  string id = 1;
+  float normalized_value = 2;
+  float raw_value = 3;
+}
+
+message Transport {
+  double tempo = 1;
+  bool playing = 2;
+  int64 position_samples = 3;
+  uint32 time_signature_numerator = 4;
+  uint32 time_signature_denominator = 5;
+}
+
+message AudioEngineState {
+  repeated Parameter parameters = 1;
+  Transport transport = 2;
+}

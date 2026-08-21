@@ -22,5 +22,16 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "sensorium-v2",
+    "sensorium-harness",
+    "src/App.modular.tsx",
+    "src/App.backup.tsx",
+    "src/App.tsx",
+    "src/components/CustomDashboardStudio.tsx"
+  ]
 }

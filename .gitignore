@@ -1,9 +1,34 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 build/
 dist/
 coverage/
+target/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+
+# Environment
 .env*
 !.env.example
-sensorium-v2/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Rust
+*.pdb
+
+# Turbo
+.turbo/
+
+# Qoder
+.reasonix/

@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: Sensorium API
+  version: 0.1.0
+paths:
+  /audio/callback:
+    post:
+      summary: Process an audio callback buffer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioCallback'
+      responses:
+        '200':
+          description: Processed callback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioEngineState'
+  /midi/ump:
+    post:
+      summary: Route a MIDI 2.0 UMP packet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UmpMessage'
+      responses:
+        '200':
+          description: Route decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteDecision'
+  /state/sync:
+    post:
+      summary: Sync Sensorium document state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StateSnapshot'
+      responses:
+        '200':
+          description: Sync acknowledged
+components:
+  schemas:
+    AudioCallback:
+      type: object
+    AudioEngineState:
+      type: object
+    UmpMessage:
+      type: object
+    RouteDecision:
+      type: object
+      properties:
+        channel:
+          type: integer
+        group:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+    StateSnapshot:
+      type: object
+      properties:
+        automerge_binary:
+          type: string
+          format: byte
+        saved_at:
+          type: integer
+          format: int64

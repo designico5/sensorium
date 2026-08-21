@@ -1,0 +1,27 @@
+[package]
+name = "sensorium-sync"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+automerge = { workspace = true }
+automerge_repo = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+async-trait = { workspace = true }
+futures = { workspace = true }
+futures-util = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+criterion = { workspace = true }
+proptest = { workspace = true }
+
+[[bench]]
+name = "sync_roundtrip"
+harness = false

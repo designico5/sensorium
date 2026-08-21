@@ -1,0 +1,107 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/sensorium-audio",
+  "crates/sensorium-midi",
+  "crates/sensorium-sync",
+  "crates/sensorium-visual",
+  "crates/sensorium-ai",
+  "crates/sensorium-dsp",
+  "crates/sensorium-release",
+  "crates/sensorium-chaos",
+  "crates/sensorium-visual-shaders",
+  "crates/sensorium-contracts",
+  "src-tauri",
+]
+
+[workspace.dependencies]
+# --- Audio Engine (NIH-Plug Ecosystem) ---
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug" }
+nih_plug_derive = { git = "https://github.com/robbert-vdh/nih-plug", package = "nih_plug_derive" }
+nih_plug_vizia = { git = "https://github.com/robbert-vdh/nih-plug", package = "nih_plug_vizia" }
+fundsp = "0.23"
+rubato = "5.0"
+cpal = { version = "0.16", features = [] }
+ringbuf = "0.5"
+midly = "0.5.3"               # SMF + MIDI 1.0
+midir = { version = "0.9" }
+automerge = { version = "0.7.0", features = ["wasm"] }
+automerge_repo = { version = "0.3", features = ["tokio"] }
+yjs = "13.6"                # npm package für Web
+y-webtransport = "0.1"      # WebTransport Provider für Yjs
+
+# --- Network (WebTransport/QUIC) ---
+quinn = "0.11"
+webtransport = "0.12"
+rustls = { version = "0.23", features = ["ring"] }
+tokio = { version = "1.38", features = ["full", "rt-multi-thread"] }
+
+# --- GPU/Visual (WebGPU) ---
+wgpu = { version = "0.19", features = ["wgsl", "fragile-send-sync-non-atomic-wasm"] }
+pollster = "0.3"
+bytemuck = "1.14"
+
+# --- Local AI (llamafile + candle) ---
+candle = { version = "0.6", features = ["cuda", "metal", "cublas"] }
+candle_nn = "0.6"
+candle_transformers = "0.6"
+tokenizers = "0.15"
+llamafile = "0.8"           # Single-File Deployment
+
+# --- Formal Verification ---
+kani = "0.33"               # Model Checking
+prusti = "0.12"             # Deductive Verification
+creusot = "0.10"            # Deductive Verification
+
+# --- Observability (OpenTelemetry) ---
+tracing = { version = "0.1", features = ["std"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.24"
+opentelemetry = { version = "0.23", features = ["metrics", "trace"] }
+opentelemetry_prometheus = "0.22"
+metrics = { version = "0.21", features = ["exponential_histogram"] }
+metrics_exporter_prometheus = "0.13"
+
+# --- Testing & Quality ---
+proptest = "1.2"            # Property-Based Testing
+quickcheck = "1.0"
+criterion = { version = "0.5" }
+dhat = "0.3"                # Heap Profiling
+
+# --- Developer Experience ---
+cargo_dist = "0.1"          # Automated Releases
+cargo_watch = "8.4"         # Hot Reload
+evcxr = "0.16"              # Rust REPL
+
+# --- Memory/Async ---
+bumpalo = "3.14"            # Arena Allocator
+slotmap = "1.0"             # Slot Map für Entity Management
+crossbeam = "0.8"           # Lock-free Data Structures
+parking_lot = "0.12"        # Faster Mutex/RwLock
+raw-window-handle = "0.6"   # Window handle abstraction
+
+# --- Common ---
+thiserror = "2"
+anyhow = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bytes = "0.6"
+
+# --- Protobuf / Contract First ---
+prost = "0.12"
+tonic = "0.10"
+prost-types = "0.12"
+
+# --- Testing dependencies ---
+async-trait = "0.1"
+futures = "0.3"
+futures-util = "0.3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+[profile.bench]
+debug = true

@@ -1,0 +1,91 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/sensorium-audio",
+  "crates/sensorium-midi",
+  "crates/sensorium-sync",
+  "crates/sensorium-visual",
+  "crates/sensorium-ai",
+  "crates/sensorium-dsp",
+  "crates/sensorium-release",
+  "crates/sensorium-chaos",
+  "crates/sensorium-visual-shaders",
+]
+
+[workspace.dependencies]
+# --- Audio Engine (NIH-Plug Ecosystem) ---
+nih_plug_core = "0.1"
+nih_plug_derive = "0.1"
+vizia = "0.4"
+fundsp = "0.23"
+rubato = "5"
+cpal = "0.18"
+ringbuf = "0.5"
+midly = "0.5"
+midir = "0.11"
+
+# --- State Sync (Automerge) ---
+automerge = "0.11"
+automerge_repo = "0.3"
+
+# --- Network (QUIC) ---
+quinn = "0.11"
+rustls = "0.23"
+tokio = { version = "1.53", features = ["full", "rt-multi-thread"] }
+
+# --- GPU/Visual (WebGPU) ---
+wgpu = "30"
+pollster = "1"
+bytemuck = "1.25"
+
+# --- Formal Verification (cargo plugins, not lib deps) ---
+# kani = "0.67"
+# prusti = "0.2"
+# creusot = "0.13"
+
+# --- Observability (OpenTelemetry) ---
+tracing = { version = "0.1", features = ["std"] }
+tracing-opentelemetry = "0.24"
+opentelemetry = { version = "0.23", features = ["metrics", "trace"] }
+opentelemetry-prometheus = "0.22"
+metrics = { version = "0.21", features = ["exponential_histogram"] }
+metrics-exporter-prometheus = "0.13"
+
+# --- Testing & Quality ---
+proptest = "1.11"
+quickcheck = "1.1"
+criterion = "0.8"
+dhat = "0.3"
+
+# --- Developer Experience ---
+cargo-dist = "0.32"
+cargo-watch = "8.5"
+evcxr = "0.22"
+
+# --- Memory/Async ---
+bumpalo = "3.20"
+slotmap = "1.1"
+crossbeam = "0.8"
+parking_lot = "0.12"
+raw-window-handle = "0.6"
+
+# --- Common ---
+thiserror = "2"
+anyhow = "1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bytes = "0.6"
+
+# --- Protobuf / Contract First ---
+prost = "0.14"
+tonic = "0.14"
+prost-types = "0.14"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+[profile.bench]
+debug = true

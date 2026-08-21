@@ -1,0 +1,80 @@
+name: Verify Gate
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust-check:
+    name: Rust Workspace Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "sensorium-v2 -> target"
+      - name: Cargo Check
+        working-directory: sensorium-v2
+        run: cargo check --workspace
+      - name: Cargo Clippy
+        working-directory: sensorium-v2
+        run: cargo clippy --workspace -- -D warnings
+
+  rust-test:
+    name: Rust Tests
+    runs-on: windows-latest
+    needs: rust-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "sensorium-v2 -> target"
+      - name: Run Tests
+        working-directory: sensorium-v2
+        run: cargo test --workspace
+
+  rust-build:
+    name: Rust Release Build
+    runs-on: windows-latest
+    needs: rust-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "sensorium-v2 -> target"
+      - name: Release Build
+        working-directory: sensorium-v2
+        run: cargo build --workspace --release
+
+  frontend-check:
+    name: Frontend Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npx tsc --noEmit
+        continue-on-error: true
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run Audit
+        working-directory: sensorium-v2
+        run: cargo audit

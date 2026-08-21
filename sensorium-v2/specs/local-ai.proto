@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package sensorium.local_ai;
+
+message InferenceRequest {
+  string prompt = 1;
+  int32 max_tokens = 2;
+  float temperature = 3;
+  map<string, string> context = 4;
+}
+
+message InferenceResponse {
+  string text = 1;
+  repeated string tool_calls = 2;
+  float confidence = 3;
+}
+
+message FunctionCall {
+  string name = 1;
+  map<string, string> arguments = 2;
+}

@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package sensorium.state;
+
+message ChangeOp {
+  bytes key = 1;
+  bytes value = 2;
+  int64 seq = 3;
+}
+
+message SyncMessage {
+  string peer_id = 1;
+  repeated ChangeOp changes = 2;
+  int64 clock = 3;
+  bool needs_ack = 4;
+}
+
+message StateSnapshot {
+  bytes automerge_binary = 1;
+  int64 saved_at = 2;
+  string peer_id = 3;
+}

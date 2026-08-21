@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package sensorium.midi;
+
+message UmpMessage {
+  uint32 words = 1;
+  uint32 message_type = 2;
+  uint32 group = 3;
+  uint32 status = 4;
+  uint32 data1 = 5;
+  uint32 data2 = 6;
+  uint32 data3 = 7;
+  uint32 data4 = 8;
+}
+
+message PerNoteExpression {
+  uint32 note = 1;
+  uint32 attribute = 2;
+  uint32 value = 3;
+  uint32 controller_type = 4;
+}
+
+message Midi2Configuration {
+  uint32 max_groups = 1;
+  uint32 max_streams = 2;
+  bool per_note_enabled = 3;
+}
+
+message MidiRouterState {
+  Midi2Configuration config = 1;
+  repeated UmpMessage pending = 2;
+}

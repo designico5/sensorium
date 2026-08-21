@@ -1,0 +1,16 @@
+{
+  "name": "sensorium-v2",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "generate:types": "echo \"protobuf types generation scaffold\""
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.6.3"
+  }
+}

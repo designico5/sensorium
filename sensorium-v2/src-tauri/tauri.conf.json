@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/nicegui/elements/lib/tauri/schema.json",
+  "productName": "Sensorium",
+  "version": "0.1.0",
+  "identifier": "com.sensorium.app",
+  "build": {
+    "frontendDist": "../packages/frontend",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Sensorium",
+        "width": 1920,
+        "height": 1080,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": []
+  }
+}

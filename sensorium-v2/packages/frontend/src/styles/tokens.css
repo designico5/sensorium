@@ -1,0 +1,855 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SENSORIUM V2 — Design Token System
+   Dark Glass + Neon Audio-Reactive + Haptic Fluid
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import "tailwindcss";
+
+/* ── Core Palette ──────────────────────────────────────────────── */
+:root {
+  /* Surface layers — depth through transparency */
+  --surface-0: #0a0a0f;          /* Void — deepest background */
+  --surface-1: rgba(16, 16, 24, 0.85);   /* Glass base */
+  --surface-2: rgba(24, 24, 36, 0.72);   /* Glass elevated */
+  --surface-3: rgba(36, 36, 52, 0.60);   /* Glass floating */
+  --surface-glass: rgba(255, 255, 255, 0.04); /* Glass highlight */
+  --surface-glass-hover: rgba(255, 255, 255, 0.08);
+
+  /* Neon Audio-Reactive Accent System */
+  --neon-bass: #ff2d55;          /* Low freq — hot pink/red */
+  --neon-mid: #af52de;           /* Mid freq — purple */
+  --neon-treble: #5ac8fa;        /* High freq — cyan */
+  --neon-energy: #ff9f0a;        /* Energy — amber */
+  --neon-success: #30d158;       /* Positive — green */
+  --neon-warning: #ffd60a;       /* Warning — yellow */
+  --neon-danger: #ff453a;        /* Danger — red */
+
+  /* Text hierarchy */
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-tertiary: rgba(255, 255, 255, 0.30);
+  --text-accent: var(--neon-treble);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  /* Glass morphism */
+  --glass-blur: 24px;
+  --glass-saturate: 180%;
+  --glass-border: 1px solid var(--border-subtle);
+
+  /* Spring physics tokens */
+  --spring-gentle: cubic-bezier(0.4, 0, 0.2, 1);
+  --spring-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-snap: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Meter colors */
+  --meter-green: #30d158;
+  --meter-yellow: #ffd60a;
+  --meter-red: #ff453a;
+
+  /* Font */
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Global Reset & Base ───────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--surface-0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Glass Morphism Utility ────────────────────────────────────── */
+.glass {
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: var(--glass-border);
+}
+
+.glass-elevated {
+  background: var(--surface-2);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid var(--border-default);
+}
+
+/* ── Neon Glow Effects ─────────────────────────────────────────── */
+.glow-bass {
+  box-shadow: 0 0 20px rgba(255, 45, 85, 0.3), 0 0 60px rgba(255, 45, 85, 0.1);
+}
+.glow-mid {
+  box-shadow: 0 0 20px rgba(175, 82, 222, 0.3), 0 0 60px rgba(175, 82, 222, 0.1);
+}
+.glow-treble {
+  box-shadow: 0 0 20px rgba(90, 200, 250, 0.3), 0 0 60px rgba(90, 200, 250, 0.1);
+}
+.glow-energy {
+  box-shadow: 0 0 20px rgba(255, 159, 10, 0.3), 0 0 60px rgba(255, 159, 10, 0.1);
+}
+
+/* ── Neon Text ─────────────────────────────────────────────────── */
+.text-neon-bass { color: var(--neon-bass); }
+.text-neon-mid { color: var(--neon-mid); }
+.text-neon-treble { color: var(--neon-treble); }
+.text-neon-energy { color: var(--neon-energy); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+/* ── Focus & Accessibility ─────────────────────────────────────── */
+*:focus-visible {
+  outline: 2px solid var(--neon-treble);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Animated Background Grid ──────────────────────────────────── */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ── Audio Reactive Gradient ───────────────────────────────────── */
+.audio-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--neon-bass) 0%,
+    var(--neon-mid) 50%,
+    var(--neon-treble) 100%
+  );
+}
+
+/* ── Mono Text ─────────────────────────────────────────────────── */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INTERACTION TOKENS — Haptic-first design system extensions
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Interaction states */
+  --interact-hover: rgba(255, 255, 255, 0.04);
+  --interact-active: rgba(255, 255, 255, 0.08);
+  --interact-focus: rgba(90, 200, 250, 0.15);
+  --interact-drag: rgba(90, 200, 250, 0.20);
+  --interact-selected: rgba(90, 200, 250, 0.12);
+
+  /* Haptic feedback colors */
+  --haptic-tap: rgba(90, 200, 250, 0.3);
+  --haptic-snap: rgba(48, 209, 88, 0.4);
+  --haptic-error: rgba(255, 69, 58, 0.3);
+  --haptic-success: rgba(48, 209, 88, 0.3);
+
+  /* Transition tokens */
+  --t-instant: 80ms;
+  --t-fast: 150ms;
+  --t-normal: 250ms;
+  --t-slow: 400ms;
+  --t-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-snap: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Depth layers (z-index scale) */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-floating: 100;
+  --z-overlay: 500;
+  --z-modal: 1000;
+  --z-toast: 2000;
+  --z-tooltip: 5000;
+
+  /* Knob / Control sizing */
+  --knob-sm: 20px;
+  --knob-md: 28px;
+  --knob-lg: 40px;
+  --fader-height: 140px;
+  --fader-width: 32px;
+
+  /* Live status colors */
+  --status-safe: #30d158;
+  --status-armed: #ff9f0a;
+  --status-live: #ff2d55;
+  --status-standby: #ffd60a;
+  --status-offline: rgba(255, 255, 255, 0.15);
+
+  /* Stem category colors (industry standard) */
+  --stem-drums: #ff9f0a;
+  --stem-bass: #ff2d55;
+  --stem-keys: #5ac8fa;
+  --stem-synth: #af52de;
+  --stem-guitar: #30d158;
+  --stem-vocals: #ffd60a;
+  --stem-fx: #64d2ff;
+  --stem-brass: #ff453a;
+  --stem-strings: #bf5af2;
+  --stem-perc: #ff375f;
+}
+
+/* ── Interaction State Classes ─────────────────────────────────── */
+.interact-surface {
+  transition: background var(--t-fast) var(--t-smooth),
+              border-color var(--t-fast) var(--t-smooth),
+              box-shadow var(--t-fast) var(--t-smooth);
+}
+.interact-surface:hover {
+  background: var(--interact-hover);
+  border-color: var(--border-default);
+}
+.interact-surface:active {
+  background: var(--interact-active);
+}
+
+/* ── Haptic Feedback Animations ────────────────────────────────── */
+@keyframes haptic-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes haptic-glow {
+  0% { box-shadow: 0 0 0 0 var(--haptic-tap); }
+  50% { box-shadow: 0 0 12px 4px var(--haptic-tap); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes haptic-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-2px); }
+  40% { transform: translateX(2px); }
+  60% { transform: translateX(-1px); }
+  80% { transform: translateX(1px); }
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes status-breathe {
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px currentColor; }
+  50% { opacity: 1; box-shadow: 0 0 12px currentColor; }
+}
+
+@keyframes ripple-expand {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+@keyframes value-pop {
+  0% { transform: scale(0.8) translateY(4px); opacity: 0; }
+  60% { transform: scale(1.05) translateY(-2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  0% { transform: translateX(20px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-in-up {
+  0% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fade-scale-in {
+  0% { transform: scale(0.95); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── Haptic Utility Classes ────────────────────────────────────── */
+.haptic-tap:active {
+  animation: haptic-pulse 150ms ease-out;
+}
+.haptic-glow {
+  animation: haptic-glow 600ms ease-out;
+}
+.haptic-error {
+  animation: haptic-shake 300ms ease-out;
+}
+.status-live {
+  animation: status-blink 1s ease-in-out infinite;
+}
+.status-breathe {
+  animation: status-breathe 2s ease-in-out infinite;
+}
+
+/* ── Drag & Drop Visual Feedback ───────────────────────────────── */
+.drag-source {
+  opacity: 0.5;
+  transform: scale(0.95);
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.drag-target {
+  border: 2px dashed var(--neon-treble) !important;
+  background: var(--interact-drag) !important;
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.drag-ghost {
+  pointer-events: none;
+  opacity: 0.8;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Tooltip Animation ─────────────────────────────────────────── */
+.tooltip-enter {
+  animation: fade-scale-in 150ms var(--t-spring);
+}
+
+/* ── Value Display (knob hover) ────────────────────────────────── */
+.value-display {
+  animation: value-pop 200ms var(--t-spring);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── Live Mode Indicator ───────────────────────────────────────── */
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+.live-indicator--safe {
+  color: var(--status-safe);
+  background: rgba(48, 209, 88, 0.1);
+  border: 1px solid rgba(48, 209, 88, 0.3);
+}
+.live-indicator--armed {
+  color: var(--status-armed);
+  background: rgba(255, 159, 10, 0.1);
+  border: 1px solid rgba(255, 159, 10, 0.3);
+}
+.live-indicator--live {
+  color: var(--status-live);
+  background: rgba(255, 45, 85, 0.1);
+  border: 1px solid rgba(255, 45, 85, 0.3);
+}
+.live-indicator--live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-live);
+  animation: status-blink 1s ease-in-out infinite;
+}
+
+/* ── Context Menu ──────────────────────────────────────────────── */
+.context-menu {
+  animation: fade-scale-in 120ms var(--t-spring);
+  background: rgba(18, 18, 28, 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 4px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--t-instant);
+}
+.context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.context-menu-item--danger {
+  color: var(--neon-danger);
+}
+
+/* ── Notification Toast ────────────────────────────────────────── */
+.toast {
+  animation: slide-in-right 300ms var(--t-spring);
+  background: rgba(18, 18, 28, 0.96);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast--success { border-left: 3px solid var(--neon-success); }
+.toast--warning { border-left: 3px solid var(--neon-warning); }
+.toast--error { border-left: 3px solid var(--neon-danger); }
+.toast--info { border-left: 3px solid var(--neon-treble); }
+
+/* ── Knob / Control Hover Value ────────────────────────────────── */
+.knob-wrapper {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.knob-wrapper:active {
+  cursor: grabbing;
+}
+.knob-wrapper:hover .knob-value {
+  opacity: 1;
+  transform: translateY(0);
+}
+.knob-value {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  opacity: 0;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--neon-treble);
+  white-space: nowrap;
+}
+
+/* ── Selection System ──────────────────────────────────────────── */
+.selected {
+  outline: 2px solid var(--neon-treble);
+  outline-offset: -1px;
+  background: var(--interact-selected) !important;
+}
+.multi-selected {
+  outline: 1px solid var(--neon-treble);
+  outline-offset: -1px;
+}
+
+/* ── Show Mode (big target, high contrast) ─────────────────────── */
+.show-mode {
+  --glass-blur: 12px;
+  font-size: 16px;
+}
+.show-mode .interact-surface:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.show-mode button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIVE PRODUCTION TOKENS — Extended for broadcast & stage
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* LUFS Meter tokens */
+  --lufs-target: -23;            /* EBU R128 target */
+  --lufs-broadcast-min: -26;
+  --lufs-broadcast-max: -14;
+  --lufs-safe: #30d158;
+  --lufs-warning: #ffd60a;
+  --lufs-danger: #ff453a;
+
+  /* Latency thresholds (ms) */
+  --latency-good: 5;
+  --latency-warning: 15;
+  --latency-critical: 30;
+
+  /* Talkback */
+  --talkback-active: var(--neon-danger);
+  --talkback-dim-level: 0.2;
+
+  /* Macro chain colors */
+  --macro-record: var(--neon-danger);
+  --macro-playing: var(--neon-treble);
+  --macro-idle: var(--text-tertiary);
+
+  /* Countdown */
+  --countdown-urgent: var(--neon-danger);
+  --countdown-normal: var(--status-safe);
+  --countdown-warning: var(--neon-warning);
+
+  /* Mix health */
+  --health-good: var(--status-safe);
+  --health-warning: var(--neon-warning);
+  --health-critical: var(--neon-danger);
+
+  /* Signal flow */
+  --signal-active: var(--neon-success);
+  --signal-idle: var(--text-tertiary);
+  --signal-hot: var(--neon-danger);
+}
+
+/* ── LUFS Meter Utility ─────────────────────────────────────────── */
+.lufs-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+}
+.lufs-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  position: relative;
+}
+.lufs-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 100ms linear;
+}
+.lufs-compliance {
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+}
+.lufs-compliance--broadcast {
+  color: var(--lufs-safe);
+  background: rgba(48, 209, 88, 0.1);
+}
+.lufs-compliance--hot {
+  color: var(--lufs-danger);
+  background: rgba(255, 69, 58, 0.1);
+}
+.lufs-compliance--low {
+  color: var(--lufs-warning);
+  background: rgba(255, 214, 10, 0.1);
+}
+
+/* ── Latency Badge ──────────────────────────────────────────────── */
+.latency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.latency-badge--good {
+  color: var(--status-safe);
+  background: rgba(48, 209, 88, 0.1);
+  border: 1px solid rgba(48, 209, 88, 0.3);
+}
+.latency-badge--warning {
+  color: var(--neon-warning);
+  background: rgba(255, 214, 10, 0.1);
+  border: 1px solid rgba(255, 214, 10, 0.3);
+}
+.latency-badge--critical {
+  color: var(--neon-danger);
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  animation: status-blink 1s ease-in-out infinite;
+}
+
+/* ── Talkback Button ────────────────────────────────────────────── */
+.talkback-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.talkback-btn:hover {
+  border-color: var(--neon-danger);
+  color: var(--neon-danger);
+}
+.talkback-btn--active {
+  background: rgba(255, 69, 58, 0.2);
+  border-color: var(--neon-danger);
+  color: var(--neon-danger);
+  box-shadow: 0 0 16px rgba(255, 69, 58, 0.4);
+  animation: status-breathe 2s ease-in-out infinite;
+}
+
+/* ── Macro Chain ────────────────────────────────────────────────── */
+.macro-chain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.macro-chain:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-default);
+}
+.macro-chain--recording {
+  border-color: var(--macro-record);
+  animation: haptic-pulse 1s ease-in-out infinite;
+}
+.macro-chain--playing {
+  border-color: var(--macro-playing);
+  background: rgba(90, 200, 250, 0.06);
+}
+
+/* ── Countdown Display ──────────────────────────────────────────── */
+.countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+}
+.countdown-time {
+  font-size: 24px;
+  font-weight: 800;
+  transition: color var(--t-fast);
+}
+.countdown-time--urgent {
+  animation: status-blink 0.5s ease-in-out infinite;
+  text-shadow: 0 0 12px currentColor;
+}
+.countdown-bar {
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.countdown-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 300ms linear;
+}
+
+/* ── Mix Health Badge ───────────────────────────────────────────── */
+.mix-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.mix-health--good {
+  color: var(--health-good);
+  background: rgba(48, 209, 88, 0.1);
+  border: 1px solid rgba(48, 209, 88, 0.3);
+}
+.mix-health--warning {
+  color: var(--health-warning);
+  background: rgba(255, 214, 10, 0.1);
+  border: 1px solid rgba(255, 214, 10, 0.3);
+}
+.mix-health--critical {
+  color: var(--health-critical);
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  animation: haptic-pulse 0.8s ease-in-out infinite;
+}
+
+/* ── Signal Flow ────────────────────────────────────────────────── */
+.signal-node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 8px;
+  font-weight: 600;
+  transition: all var(--t-fast) var(--t-smooth);
+}
+.signal-node--active {
+  background: rgba(48, 209, 88, 0.1);
+  border: 1px solid rgba(48, 209, 88, 0.3);
+  color: var(--signal-active);
+}
+.signal-node--idle {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  color: var(--signal-idle);
+}
+.signal-node--hot {
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  color: var(--signal-hot);
+}
+
+/* ── Frequency Masking Conflict ─────────────────────────────────── */
+.masking-conflict {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 69, 58, 0.05);
+  border: 1px solid rgba(255, 69, 58, 0.2);
+  font-size: 9px;
+}
+.masking-conflict--resolved {
+  opacity: 0.4;
+  border-color: var(--status-safe);
+  background: rgba(48, 209, 88, 0.05);
+}
+
+/* ── Parameter Morph Indicator ──────────────────────────────────── */
+@keyframes morph-progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+.morph-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--neon-treble);
+  border-radius: 1px;
+  transition: width 50ms linear;
+}
+
+/* ── Additional Micro-Delight Animations ────────────────────────── */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-20px) scale(0.8); }
+}
+
+@keyframes glow-ring {
+  0% { box-shadow: 0 0 0 0 var(--neon-treble); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes success-check {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.sparkle { animation: sparkle 600ms ease-out; }
+.float-up { animation: float-up 800ms ease-out forwards; }
+.glow-ring { animation: glow-ring 800ms ease-out; }
+.success-check { animation: success-check 400ms var(--t-spring); }
+
+/* ── Waveform Bars (for audio visualization) ────────────────────── */
+.wave-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 16px;
+}
+.wave-bar {
+  width: 2px;
+  background: var(--neon-treble);
+  border-radius: 1px;
+  animation: wave 800ms ease-in-out infinite;
+}
+.wave-bar:nth-child(2) { animation-delay: 100ms; }
+.wave-bar:nth-child(3) { animation-delay: 200ms; }
+.wave-bar:nth-child(4) { animation-delay: 300ms; }
+.wave-bar:nth-child(5) { animation-delay: 400ms; }
