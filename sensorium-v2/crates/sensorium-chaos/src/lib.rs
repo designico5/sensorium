@@ -85,12 +85,14 @@ impl ChaosRunner {
     /// Run a single experiment.
     async fn run_single(&self, experiment: &ChaosExperiment) -> Result<ExperimentResult> {
         info!(name = %experiment.name, "Running chaos experiment");
-        // TODO: Implement actual fault injection
+        // A registered experiment is not evidence of a successful fault-injection
+        // run. Keep the result explicitly failing until an adapter performs and
+        // observes the requested fault and recovery.
         Ok(ExperimentResult {
             experiment_name: experiment.name.clone(),
-            passed: true,
+            passed: false,
             recovery_time_ms: 0.0,
-            details: "Stub — implementation pending".into(),
+            details: "NOT_IMPLEMENTED: fault injection and recovery observation are pending".into(),
         })
     }
 
@@ -111,6 +113,8 @@ impl Default for ChaosRunner {
 /// Overall system health status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum HealthStatus {
+    /// No registered checks or no trustworthy observation yet.
+    Unknown,
     /// All systems nominal.
     Healthy,
     /// Degraded but operational.
@@ -269,7 +273,11 @@ impl HealthAssessor {
     /// Run all health checks and produce a report.
     pub fn assess(&self) -> HealthReport {
         let mut components = Vec::new();
-        let mut overall = HealthStatus::Healthy;
+        let mut overall = if self.checks.is_empty() {
+            HealthStatus::Unknown
+        } else {
+            HealthStatus::Healthy
+        };
 
         for check in &self.checks {
             let mut health = check.check();
@@ -285,6 +293,9 @@ impl HealthAssessor {
                         && overall != HealthStatus::Unhealthy =>
                 {
                     overall = HealthStatus::Degraded
+                }
+                HealthStatus::Unknown if overall == HealthStatus::Healthy => {
+                    overall = HealthStatus::Unknown
                 }
                 _ => {}
             }
@@ -415,6 +426,36 @@ impl FailurePredictor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn health_is_unknown_without_observations() {
+        let report = HealthAssessor::new().assess();
+        assert_eq!(report.overall, HealthStatus::Unknown);
+        assert!(report.components.is_empty());
+    }
+
+    #[test]
+    fn unimplemented_chaos_experiment_never_reports_pass() {
+        let mut runner = ChaosRunner::new();
+        runner.register(ChaosExperiment {
+            name: "network-rejoin".into(),
+            experiment_type: ExperimentType::NetworkPartition,
+            duration_ms: 1,
+            severity: Severity::High,
+        });
+
+        let results = std::future::Future::poll(
+            std::pin::pin!(runner.run_all()),
+            &mut std::task::Context::from_waker(std::task::Waker::noop()),
+        );
+        let results = match results {
+            std::task::Poll::Ready(result) => result.unwrap(),
+            std::task::Poll::Pending => panic!("stub experiment must complete without awaiting I/O"),
+        };
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].passed);
+        assert!(results[0].details.starts_with("NOT_IMPLEMENTED:"));
+    }
 
     #[test]
     fn runner_creation() {
