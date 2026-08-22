@@ -95,7 +95,7 @@
       "gate": "G2",
       "required": true,
       "tests": [
-        { "id": "DSP-001", "name": "Full HD / 1440p / 4K / 5K / 8K", "status": "AUTOMATED_OPEN", "evidence": ["sensorium-v2/packages/frontend/src/styles/performance.css"] },
+        { "id": "DSP-001", "name": "Full HD / 1440p / 4K / 5K / 8K", "status": "PARTIAL", "evidence": ["sensorium-v2/packages/frontend/src/styles/performance.css", "sensorium-v2/packages/frontend/e2e/visual-layout.spec.mjs"] },
         { "id": "DSP-002", "name": "100 / 125 / 150 / 200 percent scaling", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "DSP-003", "name": "60 / 90 / 120 / 144 Hz frame budget", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "DSP-004", "name": "real ten-point touch", "status": "HIL_REQUIRED", "evidence": [] },

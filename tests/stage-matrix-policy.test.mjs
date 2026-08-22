@@ -145,6 +145,14 @@ test('SysEx size handling has bounded native evidence', () => {
   assert.ok(sysex.evidence.includes('sensorium-v2/crates/sensorium-midi/src/lib.rs'));
 });
 
+test('display resolution coverage is partial until every requested resolution is physically measured', () => {
+  const resolution = matrix.domains
+    .find((domain) => domain.id === 'display-touch')
+    .tests.find((testCase) => testCase.id === 'DSP-001');
+  assert.equal(resolution.status, 'PARTIAL');
+  assert.ok(resolution.evidence.includes('sensorium-v2/packages/frontend/e2e/visual-layout.spec.mjs'));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);
