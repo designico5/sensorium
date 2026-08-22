@@ -92,6 +92,20 @@ jobs:
         working-directory: sensorium-v2
         run: cargo test -p sensorium-release --lib
 
+  sync-snapshot-contracts:
+    name: Sync Snapshot Migration Contract
+    runs-on: windows-latest
+    needs: stage-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "sensorium-v2 -> target"
+      - name: Verify versioned snapshots and legacy migration
+        working-directory: sensorium-v2
+        run: cargo test -p sensorium-sync --lib
+
   rust-build:
     name: Rust Release Build
     runs-on: windows-latest

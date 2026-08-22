@@ -24,7 +24,7 @@ The browser demo is usable and explicitly marked as simulation. The isolated nat
 
 | Domain | Gate | Current interpretation |
 | --- | --- | --- |
-| Software | G1 | Unit, contract and release-manifest boundaries have automated evidence; real-browser E2E and axe accessibility checks are wired into CI, while sustained fuzzing, offline and rollback remain open. |
+| Software | G1 | Unit, contract, snapshot/migration and release-manifest boundaries have automated evidence; real-browser E2E and axe accessibility checks are wired into CI, while sustained fuzzing, offline and rollback remain open. |
 | Audio hardware | G4 | HIL required for every driver, clock, disconnect and soak condition. |
 | MIDI | G3 | Native parser and bounded endpoint identity evidence exists; physical hotplug, replacement and device records keep the gate closed. |
 | Network and sync | G3 | Rogue-peer and certificate tests are blocked until the transport is authenticated. |

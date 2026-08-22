@@ -52,6 +52,14 @@ pub struct SensoriumDocument {
     pub session: SessionView,
 }
 
+const SNAPSHOT_SCHEMA_VERSION: u16 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SnapshotEnvelope {
+    schema_version: u16,
+    document: SensoriumDocument,
+}
+
 impl SensoriumDocument {
     pub fn new() -> Self {
         Self::default()
@@ -63,6 +71,27 @@ impl SensoriumDocument {
 
     pub fn update_settings(&mut self, settings: Settings) {
         self.settings = settings;
+    }
+
+    /// Encode a versioned snapshot envelope for persistence and rollback.
+    pub fn to_snapshot_json(&self) -> Result<String> {
+        Ok(serde_json::to_string(&SnapshotEnvelope {
+            schema_version: SNAPSHOT_SCHEMA_VERSION,
+            document: self.clone(),
+        })?)
+    }
+
+    /// Load both current envelopes and legacy unversioned snapshots.
+    pub fn from_snapshot_json(json: &str) -> Result<Self> {
+        let value: serde_json::Value = serde_json::from_str(json)?;
+        if value.get("schema_version").is_none() {
+            return Ok(serde_json::from_value(value)?);
+        }
+        let envelope: SnapshotEnvelope = serde_json::from_value(value)?;
+        if envelope.schema_version != SNAPSHOT_SCHEMA_VERSION {
+            anyhow::bail!("unsupported session snapshot schema {}", envelope.schema_version);
+        }
+        Ok(envelope.document)
     }
 }
 
@@ -213,7 +242,7 @@ impl SyncState {
     }
 
     pub fn apply_document(&mut self, document: &SensoriumDocument) -> Result<()> {
-        let json = serde_json::to_string(document)?;
+        let json = document.to_snapshot_json()?;
         self.doc.transact(|tx| -> Result<(), AutomergeError> {
             tx.put(automerge::ROOT, "sensorium_document", &json)?;
             Ok(())
@@ -241,7 +270,7 @@ impl SyncState {
         let doc: SensoriumDocument = if json.is_empty() {
             SensoriumDocument::default()
         } else {
-            serde_json::from_str(&json)?
+            SensoriumDocument::from_snapshot_json(&json)?
         };
         Ok(doc)
     }
@@ -384,7 +413,7 @@ impl RepoSyncState {
     }
 
     pub async fn apply_document(&self, document: &SensoriumDocument) -> Result<()> {
-        let json = serde_json::to_string(document)?;
+        let json = document.to_snapshot_json()?;
         let handle = self.get_or_create_doc_handle().await?;
         handle.with_doc_mut(|doc| {
             doc.transact(|tx| -> Result<(), AutomergeError> {
@@ -421,7 +450,7 @@ impl RepoSyncState {
         let doc: SensoriumDocument = if json.is_empty() {
             SensoriumDocument::default()
         } else {
-            serde_json::from_str(&json)?
+            SensoriumDocument::from_snapshot_json(&json)?
         };
         Ok(doc)
     }
@@ -430,6 +459,23 @@ impl RepoSyncState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_envelope_is_versioned_and_legacy_json_migrates() {
+        let doc = SensoriumDocument::new();
+        let snapshot = doc.to_snapshot_json().unwrap();
+        assert!(snapshot.contains("\"schema_version\":1"));
+        assert_eq!(SensoriumDocument::from_snapshot_json(&snapshot).unwrap().settings.tempo, 120.0);
+
+        let legacy = serde_json::to_string(&doc).unwrap();
+        assert_eq!(SensoriumDocument::from_snapshot_json(&legacy).unwrap().settings.tempo, 120.0);
+    }
+
+    #[test]
+    fn snapshot_loader_rejects_unknown_schema() {
+        let future = r#"{"schema_version":99,"document":{"tracks":[],"settings":{"tempo":120.0,"time_signature":[4,4],"loop_enabled":false},"session":{"scenes":[],"clips":[],"active_scene":0,"num_tracks":0}}}"#;
+        assert!(SensoriumDocument::from_snapshot_json(future).is_err());
+    }
 
     #[test]
     fn document_roundtrip() {
