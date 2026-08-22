@@ -6,6 +6,7 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use tracing::info;
 
 /// Release configuration.
@@ -114,9 +115,22 @@ impl ReleaseManifest {
         if self.changelog.trim().is_empty() {
             anyhow::bail!("release changelog must not be empty");
         }
+        let mut names = HashSet::with_capacity(self.artifacts.len());
         for artifact in &self.artifacts {
             if artifact.name.trim().is_empty() || artifact.path.trim().is_empty() {
                 anyhow::bail!("release artifact name and path are required");
+            }
+            if !names.insert(artifact.name.trim().to_owned()) {
+                anyhow::bail!("release artifact names must be unique");
+            }
+            let path_segments = artifact.path.split(['/', '\\']);
+            if artifact.path.starts_with('/') || artifact.path.starts_with('\\')
+                || path_segments.clone().any(|segment| segment == ".." || segment.is_empty())
+            {
+                anyhow::bail!("release artifact {} has an unsafe relative path", artifact.name);
+            }
+            if artifact.size_bytes == 0 {
+                anyhow::bail!("release artifact {} must not be empty", artifact.name);
             }
             if artifact.sha256.len() != 64 || !artifact.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
                 anyhow::bail!("release artifact {} has an invalid SHA-256", artifact.name);
@@ -205,6 +219,34 @@ mod tests {
             }],
         };
         manifest.validate_for_publish().unwrap();
+    }
+
+    #[test]
+    fn publish_contract_rejects_unsafe_paths_empty_artifacts_and_duplicates() {
+        let artifact = |name: &str, path: &str, size_bytes| ReleaseArtifact {
+            name: name.into(),
+            path: path.into(),
+            target: ReleaseTarget::WindowsX86_64,
+            size_bytes,
+            sha256: "a".repeat(64),
+            signature: Some("sigstore://example".into()),
+        };
+
+        let mut manifest = ReleaseManifest {
+            version: "2.0.0".into(),
+            changelog: "Stage gate release".into(),
+            artifacts: vec![artifact("sensorium.exe", "../sensorium.exe", 42)],
+        };
+        assert!(manifest.validate_for_publish().is_err());
+
+        manifest.artifacts = vec![artifact("sensorium.exe", "releases/sensorium.exe", 0)];
+        assert!(manifest.validate_for_publish().is_err());
+
+        manifest.artifacts = vec![
+            artifact("sensorium.exe", "releases/sensorium.exe", 42),
+            artifact("sensorium.exe", "releases/sensorium-copy.exe", 42),
+        ];
+        assert!(manifest.validate_for_publish().is_err());
     }
 
     #[test]
