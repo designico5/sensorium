@@ -26,7 +26,7 @@ The browser demo is usable and explicitly marked as simulation. The isolated nat
 | --- | --- | --- |
 | Software | G1 | Some unit/boundary evidence exists; browser E2E, contracts, fuzzing, offline and rollback are open. |
 | Audio hardware | G4 | HIL required for every driver, clock, disconnect and soak condition. |
-| MIDI | G3 | Native parser/build blockers and missing physical endpoint records keep the gate closed. |
+| MIDI | G3 | Native parser and bounded endpoint identity evidence exists; physical hotplug, replacement and device records keep the gate closed. |
 | Network and sync | G3 | Rogue-peer and certificate tests are blocked until the transport is authenticated. |
 | Display and touch | G2 | CSS contains 4K/8K layout intent; real frame-time and multitouch evidence is missing. |
 | Physical acceptance | G4 | Every device needs a signed record using the schema in the JSON ledger. |

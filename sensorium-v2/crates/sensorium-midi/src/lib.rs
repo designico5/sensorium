@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
@@ -190,6 +190,112 @@ pub struct RouteDecision {
     pub channel: usize,
     pub group: u8,
     pub timestamp: Instant,
+}
+
+/// Transport-independent identity reported by an operating-system MIDI adapter.
+///
+/// Serial numbers are preferred for reconnects. Devices without a serial are
+/// deliberately marked unstable so a same-name replacement cannot be silently
+/// treated as the original endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct MidiDeviceId {
+    pub manufacturer: String,
+    pub product: String,
+    pub serial: Option<String>,
+    pub transport: String,
+}
+
+impl MidiDeviceId {
+    pub fn stable_key(&self) -> String {
+        let serial = self
+            .serial
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or("unstable");
+        format!(
+            "{}:{}:{}:{}",
+            normalize_identity_part(&self.transport),
+            normalize_identity_part(&self.manufacturer),
+            normalize_identity_part(&self.product),
+            normalize_identity_part(serial),
+        )
+    }
+
+    pub fn is_stable(&self) -> bool {
+        self.serial
+            .as_deref()
+            .is_some_and(|serial| !serial.trim().is_empty())
+    }
+}
+
+fn normalize_identity_part(value: &str) -> String {
+    value.trim().to_ascii_lowercase().replace(':', "_")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum MidiDirection {
+    Input,
+    Output,
+}
+
+/// Stable endpoint identity used by routing and hotplug reconciliation.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct MidiEndpointId {
+    pub device: MidiDeviceId,
+    pub port_index: u16,
+    pub direction: MidiDirection,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MidiEndpoint {
+    pub id: MidiEndpointId,
+    pub display_name: String,
+    pub connected: bool,
+}
+
+/// Bounded endpoint registry for hotplug, replacement and duplicate-name handling.
+#[derive(Debug, Default)]
+pub struct MidiEndpointRegistry {
+    endpoints: BTreeMap<MidiEndpointId, MidiEndpoint>,
+}
+
+impl MidiEndpointRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn upsert(&mut self, mut endpoint: MidiEndpoint) {
+        endpoint.connected = true;
+        self.endpoints.insert(endpoint.id.clone(), endpoint);
+    }
+
+    pub fn mark_disconnected(&mut self, id: &MidiEndpointId) -> bool {
+        if let Some(endpoint) = self.endpoints.get_mut(id) {
+            endpoint.connected = false;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get(&self, id: &MidiEndpointId) -> Option<&MidiEndpoint> {
+        self.endpoints.get(id)
+    }
+
+    pub fn connected_named(&self, display_name: &str) -> Vec<&MidiEndpoint> {
+        self.endpoints
+            .values()
+            .filter(|endpoint| endpoint.connected && endpoint.display_name == display_name)
+            .collect()
+    }
+
+    pub fn len(&self) -> usize {
+        self.endpoints.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.endpoints.is_empty()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -921,6 +1027,44 @@ impl Default for MidiLearnManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn device(serial: Option<&str>) -> MidiDeviceId {
+        MidiDeviceId {
+            manufacturer: "Acme".into(),
+            product: "Stage Box".into(),
+            serial: serial.map(str::to_owned),
+            transport: "USB".into(),
+        }
+    }
+
+    #[test]
+    fn device_identity_is_stable_only_with_serial() {
+        assert!(device(Some(" 42 ")).is_stable());
+        assert_eq!(device(Some(" 42 ")).stable_key(), "usb:acme:stage box:42");
+        assert!(!device(None).is_stable());
+        assert!(device(None).stable_key().ends_with(":unstable"));
+    }
+
+    #[test]
+    fn endpoint_registry_keeps_same_name_endpoints_distinct() {
+        let first = MidiEndpointId {
+            device: device(Some("A")),
+            port_index: 0,
+            direction: MidiDirection::Input,
+        };
+        let second = MidiEndpointId {
+            device: device(Some("B")),
+            port_index: 0,
+            direction: MidiDirection::Input,
+        };
+        let mut registry = MidiEndpointRegistry::new();
+        registry.upsert(MidiEndpoint { id: first.clone(), display_name: "Live In".into(), connected: false });
+        registry.upsert(MidiEndpoint { id: second.clone(), display_name: "Live In".into(), connected: false });
+        assert_eq!(registry.connected_named("Live In").len(), 2);
+        assert!(registry.mark_disconnected(&first));
+        assert_eq!(registry.connected_named("Live In").len(), 1);
+        assert!(registry.get(&second).is_some());
+    }
 
     #[test]
     fn ump_roundtrip_32bit() {
