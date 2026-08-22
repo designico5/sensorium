@@ -22,6 +22,8 @@ jobs:
         run: node --test tests/stage-matrix-policy.test.mjs tests/stage-evidence-schema.test.mjs tests/stage-evidence-validator.test.mjs
       - name: Validate available HIL evidence records
         run: node scripts/validate-stage-evidence.mjs
+      - name: Report current stage status
+        run: node scripts/report-stage-status.mjs
 
   rust-check:
     name: Rust Workspace Check

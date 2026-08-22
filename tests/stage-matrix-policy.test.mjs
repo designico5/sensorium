@@ -158,6 +158,7 @@ test('CI watches the real branch and runs the matrix plus active previews', () =
   assert.match(ci, /name:\s*Stage Matrix Contract/);
   assert.match(ci, /node --test tests\/stage-matrix-policy\.test\.mjs tests\/stage-evidence-schema\.test\.mjs tests\/stage-evidence-validator\.test\.mjs/);
   assert.match(ci, /node scripts\/validate-stage-evidence\.mjs/);
+  assert.match(ci, /node scripts\/report-stage-status\.mjs/);
   assert.match(ci, /name:\s*Sensorium V2 Frontend/);
   assert.match(ci, /Install Chromium for browser E2E/);
   assert.match(ci, /npm --workspace @sensorium\/frontend run test:e2e/);
