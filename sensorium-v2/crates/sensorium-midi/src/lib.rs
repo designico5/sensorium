@@ -253,6 +253,14 @@ pub struct MidiEndpoint {
     pub connected: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MidiEndpointTransition {
+    Connected(MidiEndpointId),
+    Reconnected(MidiEndpointId),
+    Updated(MidiEndpointId),
+    Disconnected(MidiEndpointId),
+}
+
 /// Bounded endpoint registry for hotplug, replacement and duplicate-name handling.
 #[derive(Debug, Default)]
 pub struct MidiEndpointRegistry {
@@ -287,6 +295,42 @@ impl MidiEndpointRegistry {
             .values()
             .filter(|endpoint| endpoint.connected && endpoint.display_name == display_name)
             .collect()
+    }
+
+    /// Reconcile an adapter snapshot with the last known endpoint state.
+    ///
+    /// This is intentionally outside the audio callback: adapters may allocate
+    /// while enumerating ports, while the returned transitions give the caller a
+    /// deterministic, auditable recovery event stream.
+    pub fn reconcile(&mut self, observed: &[MidiEndpoint]) -> Vec<MidiEndpointTransition> {
+        let mut transitions = Vec::new();
+
+        for (id, endpoint) in &self.endpoints {
+            if endpoint.connected && !observed.iter().any(|candidate| candidate.id == *id) {
+                transitions.push(MidiEndpointTransition::Disconnected(id.clone()));
+            }
+        }
+
+        for candidate in observed {
+            match self.endpoints.get(&candidate.id) {
+                None => transitions.push(MidiEndpointTransition::Connected(candidate.id.clone())),
+                Some(previous) if !previous.connected => {
+                    transitions.push(MidiEndpointTransition::Reconnected(candidate.id.clone()))
+                }
+                Some(previous) if previous.display_name != candidate.display_name => {
+                    transitions.push(MidiEndpointTransition::Updated(candidate.id.clone()))
+                }
+                Some(_) => {}
+            }
+            self.upsert(candidate.clone());
+        }
+
+        for transition in &transitions {
+            if let MidiEndpointTransition::Disconnected(id) = transition {
+                self.mark_disconnected(id);
+            }
+        }
+        transitions
     }
 
     pub fn len(&self) -> usize {
@@ -1064,6 +1108,20 @@ mod tests {
         assert!(registry.mark_disconnected(&first));
         assert_eq!(registry.connected_named("Live In").len(), 1);
         assert!(registry.get(&second).is_some());
+    }
+
+    #[test]
+    fn endpoint_registry_reconciles_disconnect_and_reconnect() {
+        let id = MidiEndpointId {
+            device: device(Some("A")),
+            port_index: 0,
+            direction: MidiDirection::Output,
+        };
+        let endpoint = MidiEndpoint { id: id.clone(), display_name: "Out".into(), connected: false };
+        let mut registry = MidiEndpointRegistry::new();
+        assert!(matches!(registry.reconcile(std::slice::from_ref(&endpoint))[0], MidiEndpointTransition::Connected(_)));
+        assert!(matches!(registry.reconcile(&[])[0], MidiEndpointTransition::Disconnected(_)));
+        assert!(matches!(registry.reconcile(std::slice::from_ref(&endpoint))[0], MidiEndpointTransition::Reconnected(_)));
     }
 
     #[test]
