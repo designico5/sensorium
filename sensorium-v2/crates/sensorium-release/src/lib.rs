@@ -61,6 +61,47 @@ pub struct ReleaseManifest {
     pub changelog: String,
 }
 
+/// Minimal persistent state needed to make an upgrade reversible.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReleaseHistory {
+    pub active_version: String,
+    pub previous_version: Option<String>,
+}
+
+impl ReleaseHistory {
+    pub fn new(active_version: impl Into<String>) -> Result<Self> {
+        let active_version = active_version.into();
+        if active_version.trim().is_empty() {
+            anyhow::bail!("active release version must not be empty");
+        }
+        Ok(Self { active_version, previous_version: None })
+    }
+
+    pub fn record_upgrade(&mut self, next_version: impl Into<String>) -> Result<()> {
+        let next_version = next_version.into();
+        if next_version.trim().is_empty() || next_version == self.active_version {
+            anyhow::bail!("upgrade must target a different non-empty version");
+        }
+        self.previous_version = Some(self.active_version.clone());
+        self.active_version = next_version;
+        Ok(())
+    }
+
+    pub fn rollback_target(&self) -> Result<&str> {
+        self.previous_version
+            .as_deref()
+            .filter(|version| !version.trim().is_empty() && *version != self.active_version)
+            .ok_or_else(|| anyhow::anyhow!("no distinct previous release is available"))
+    }
+
+    pub fn rollback(&mut self) -> Result<String> {
+        let target = self.rollback_target()?.to_owned();
+        let current = std::mem::replace(&mut self.active_version, target.clone());
+        self.previous_version = Some(current);
+        Ok(target)
+    }
+}
+
 impl ReleaseManifest {
     /// Enforce the minimum publish contract before any download link is enabled.
     pub fn validate_for_publish(&self) -> Result<()> {
@@ -164,5 +205,16 @@ mod tests {
             }],
         };
         manifest.validate_for_publish().unwrap();
+    }
+
+    #[test]
+    fn release_history_requires_distinct_rollback_target() {
+        let mut history = ReleaseHistory::new("2.0.0").unwrap();
+        assert!(history.rollback_target().is_err());
+        history.record_upgrade("2.1.0").unwrap();
+        assert_eq!(history.rollback().unwrap(), "2.0.0");
+        assert_eq!(history.active_version, "2.0.0");
+        assert_eq!(history.previous_version.as_deref(), Some("2.1.0"));
+        assert!(history.record_upgrade("2.0.0").is_err());
     }
 }

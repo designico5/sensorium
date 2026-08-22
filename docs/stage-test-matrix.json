@@ -27,7 +27,7 @@
         { "id": "SW-008", "name": "accessibility", "status": "PARTIAL", "evidence": ["sensorium-v2/packages/frontend/src/stage-boundary.test.ts", "sensorium-v2/packages/frontend/e2e/stage-boundary.spec.mjs"] },
         { "id": "SW-009", "name": "visual regression", "status": "NOT_STARTED", "evidence": [] },
         { "id": "SW-010", "name": "offline and recovery", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-sync/src/lib.rs"] },
-        { "id": "SW-011", "name": "upgrade and rollback", "status": "NOT_STARTED", "evidence": [] }
+        { "id": "SW-011", "name": "upgrade and rollback", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-release/src/lib.rs", "sensorium-v2/crates/sensorium-sync/src/lib.rs"] }
       ]
     },
     {
