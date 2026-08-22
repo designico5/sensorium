@@ -80,11 +80,11 @@
       "required": true,
       "tests": [
         { "id": "NET-001", "name": "cable pull and switch restart", "status": "HIL_REQUIRED", "evidence": [] },
-        { "id": "NET-002", "name": "packet loss, jitter, reordering and duplicates", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "NET-002", "name": "packet loss, jitter, reordering and duplicates", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-chaos/src/lib.rs"] },
         { "id": "NET-003", "name": "100 Mbit / 1 Gbit / WLAN", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "NET-004", "name": "DHCP change and IP conflict", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "NET-005", "name": "PTP master change and split brain", "status": "HIL_REQUIRED", "evidence": [] },
-        { "id": "NET-006", "name": "offline and rejoin", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "NET-006", "name": "offline and rejoin", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-sync/src/lib.rs"] },
         { "id": "NET-007", "name": "compromised certificate", "status": "BLOCKED_SECURITY", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "NET-008", "name": "unauthorized client", "status": "BLOCKED_SECURITY", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "NET-009", "name": "rate limiting and DoS resistance", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] }

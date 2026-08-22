@@ -91,6 +91,16 @@ test('visual regression has a multi-resolution layout guard without claiming pix
   await access(new URL('../sensorium-v2/packages/frontend/e2e/visual-layout.spec.mjs', import.meta.url));
 });
 
+test('network fault models and offline rejoin have bounded software evidence', () => {
+  const network = matrix.domains.find((domain) => domain.id === 'network-sync');
+  const impairment = network.tests.find((testCase) => testCase.id === 'NET-002');
+  const rejoin = network.tests.find((testCase) => testCase.id === 'NET-006');
+  assert.equal(impairment.status, 'PARTIAL');
+  assert.ok(impairment.evidence.includes('sensorium-v2/crates/sensorium-chaos/src/lib.rs'));
+  assert.equal(rejoin.status, 'PARTIAL');
+  assert.ok(rejoin.evidence.includes('sensorium-v2/crates/sensorium-sync/src/lib.rs'));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);

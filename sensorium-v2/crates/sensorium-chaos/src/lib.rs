@@ -108,6 +108,70 @@ impl Default for ChaosRunner {
     }
 }
 
+/// Deterministic network impairment model for repeatable software tests.
+///
+/// This deliberately models packet behavior without touching a real socket. It
+/// provides a bounded, reproducible input for transport/rejoin tests; physical
+/// cable, switch, bandwidth and PTP behavior still require HIL evidence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkImpairment {
+    pub drop_every: Option<usize>,
+    pub duplicate_every: Option<usize>,
+    pub reorder_window: usize,
+    pub jitter_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImpairedPacket {
+    pub sequence: usize,
+    pub payload: Vec<u8>,
+    pub delay_ms: u64,
+    pub duplicate: bool,
+}
+
+impl NetworkImpairment {
+    /// Apply deterministic loss, duplication, reordering and bounded jitter.
+    pub fn apply(&self, packets: &[Vec<u8>]) -> Vec<ImpairedPacket> {
+        let mut emitted = Vec::new();
+        for (index, payload) in packets.iter().enumerate() {
+            let ordinal = index + 1;
+            if self.drop_every.is_some_and(|period| period > 0 && ordinal % period == 0) {
+                continue;
+            }
+            let delay_ms = if self.jitter_ms == 0 {
+                0
+            } else {
+                ((ordinal as u64).wrapping_mul(1_103_515_245).wrapping_add(12_345))
+                    % (self.jitter_ms + 1)
+            };
+            emitted.push(ImpairedPacket {
+                sequence: index,
+                payload: payload.clone(),
+                delay_ms,
+                duplicate: false,
+            });
+            if self
+                .duplicate_every
+                .is_some_and(|period| period > 0 && ordinal % period == 0)
+            {
+                emitted.push(ImpairedPacket {
+                    sequence: index,
+                    payload: payload.clone(),
+                    delay_ms,
+                    duplicate: true,
+                });
+            }
+        }
+        let window = self.reorder_window.max(1);
+        for chunk in emitted.chunks_mut(window) {
+            if window > 1 {
+                chunk.reverse();
+            }
+        }
+        emitted
+    }
+}
+
 // ── Health Assessor ─────────────────────────────────────────────────
 
 /// Overall system health status.
@@ -455,6 +519,23 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert!(!results[0].passed);
         assert!(results[0].details.starts_with("NOT_IMPLEMENTED:"));
+    }
+
+    #[test]
+    fn deterministic_network_impairment_models_loss_duplicates_reordering_and_jitter() {
+        let impairment = NetworkImpairment {
+            drop_every: Some(4),
+            duplicate_every: Some(3),
+            reorder_window: 2,
+            jitter_ms: 7,
+        };
+        let packets = (0..6).map(|value| vec![value]).collect::<Vec<_>>();
+        let output = impairment.apply(&packets);
+
+        assert!(output.iter().all(|packet| packet.delay_ms <= 7));
+        assert!(!output.iter().any(|packet| packet.sequence == 3));
+        assert!(output.iter().any(|packet| packet.sequence == 2 && packet.duplicate));
+        assert!(output.windows(2).any(|pair| pair[0].sequence > pair[1].sequence));
     }
 
     #[test]
