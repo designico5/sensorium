@@ -127,6 +127,14 @@ test('pointer cancellation has frontend evidence', () => {
   assert.ok(pointer.evidence.includes('sensorium-v2/packages/frontend/src/lib/interactions.tsx'));
 });
 
+test('SysEx size handling has bounded native evidence', () => {
+  const sysex = matrix.domains
+    .find((domain) => domain.id === 'midi')
+    .tests.find((testCase) => testCase.id === 'MID-005');
+  assert.equal(sysex.status, 'PARTIAL');
+  assert.ok(sysex.evidence.includes('sensorium-v2/crates/sensorium-midi/src/lib.rs'));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);

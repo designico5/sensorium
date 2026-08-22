@@ -1203,6 +1203,21 @@ mod tests {
     }
 
     #[test]
+    fn sysex_payloads_roundtrip_at_supported_ump_sizes() {
+        for (message_type, payload_len) in [(0x1u8, 0usize), (0x5u8, 4usize)] {
+            let mut packet = UmpPacket::new_32bit(message_type, 0, 0x00, 0x01, 0x02);
+            packet.data_len = payload_len as u8;
+            packet.data[..payload_len].copy_from_slice(&[0x7D, 0x10, 0x20, 0xF7][..payload_len]);
+            let bytes = packet.try_to_bytes().unwrap();
+            assert_eq!(bytes.len(), payload_len + 4);
+            let decoded = UmpPacket::from_bytes(&bytes).unwrap();
+            assert_eq!(decoded.message_type, message_type);
+            assert_eq!(decoded.data_len as usize, payload_len);
+            assert_eq!(&decoded.data[..payload_len], &packet.data[..payload_len]);
+        }
+    }
+
+    #[test]
     fn router_respects_channel_count() {
         let router = MidiRouter {
             channel_count: 8,
