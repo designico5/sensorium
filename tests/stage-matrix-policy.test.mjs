@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrix = JSON.parse(await readFile(new URL('../docs/stage-test-matrix.json', import.meta.url), 'utf8'));
@@ -42,6 +42,15 @@ test('no physical test is falsely marked as passed', () => {
       assert.notEqual(testCase.status, 'PASS', `${testCase.id} has no physical evidence yet`);
     }
   }
+});
+
+test('parser fuzz target is present and independently buildable', async () => {
+  await access(new URL('../sensorium-v2/fuzz/fuzz_targets/ump_parser.rs', import.meta.url));
+  await access(new URL('../sensorium-v2/fuzz/Cargo.toml', import.meta.url));
+  const fuzzCase = matrix.domains
+    .find((domain) => domain.id === 'software')
+    .tests.find((testCase) => testCase.id === 'SW-005');
+  assert.ok(fuzzCase.evidence.includes('sensorium-v2/fuzz/fuzz_targets/ump_parser.rs'));
 });
 
 test('CI watches the real branch and runs the matrix plus active previews', () => {

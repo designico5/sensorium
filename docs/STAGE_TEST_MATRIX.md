@@ -18,7 +18,7 @@ The machine-readable source is [`stage-test-matrix.json`](./stage-test-matrix.js
 
 ## Current result
 
-The browser demo is usable and explicitly marked as simulation. The isolated native MIDI crate currently passes 36 tests, the audio-DSP crate passes 21 tests, and the chaos crate passes 11 tests; those are software evidence only. Health reports `Unknown` until a real check is registered, and unimplemented chaos experiments fail closed instead of reporting a false pass. The physical validation result remains **0% proven** because no completed HIL record exists in this repository. The current V2 frontend build and boundary tests do not change that verdict.
+The browser demo is usable and explicitly marked as simulation. The isolated native MIDI crate currently passes 39 tests, the audio-DSP crate passes 21 tests, and the chaos crate passes 11 tests; those are software evidence only. A libFuzzer target now exercises arbitrary UMP parser input, but no sustained fuzzing run is recorded yet. Health reports `Unknown` until a real check is registered, and unimplemented chaos experiments fail closed instead of reporting a false pass. The physical validation result remains **0% proven** because no completed HIL record exists in this repository. The current V2 frontend build and boundary tests do not change that verdict.
 
 ## Test domains
 

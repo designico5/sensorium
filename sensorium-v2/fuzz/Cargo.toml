@@ -1,0 +1,22 @@
+[package]
+name = "sensorium-midi-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# Keep the fuzz harness independently buildable from the production workspace.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+sensorium-midi = { path = "../crates/sensorium-midi" }
+
+[[bin]]
+name = "ump_parser"
+path = "fuzz_targets/ump_parser.rs"
+test = false
+doc = false
+bench = false
