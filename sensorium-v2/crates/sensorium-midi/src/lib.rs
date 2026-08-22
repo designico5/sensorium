@@ -552,17 +552,6 @@ impl<const N: usize> Default for MidiBuffer<N> {
     }
 }
 
-/// Generate a self-signed certificate for QUIC connections.
-fn generate_self_signed_cert() -> Result<(Vec<rustls::pki_types::CertificateDer<'static>>, rustls::pki_types::PrivateKeyDer<'static>)> {
-    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()])
-        .map_err(|e| anyhow::anyhow!("cert generation failed: {}", e))?;
-    let cert_der = rustls::pki_types::CertificateDer::from(cert.cert.der().to_vec());
-    let key_der = rustls::pki_types::PrivateKeyDer::from(
-        rustls::pki_types::PrivatePkcs8KeyDer::from(cert.key_pair.serialized_der().to_vec())
-    );
-    Ok((vec![cert_der], key_der))
-}
-
 /// QUIC transport server for MIDI 2.0 UMP streaming.
 ///
 /// Accepts incoming QUIC connections and reads UMP packets from
@@ -576,15 +565,34 @@ pub struct QuicServer {
 impl QuicServer {
     /// Bind a QUIC server to the given address.
     pub async fn bind(addr: impl Into<String>) -> Result<Self> {
+        let _ = addr;
+        anyhow::bail!("QUIC mTLS is required; use bind_with_mtls with a trusted client CA")
+    }
+
+    /// Bind with an explicit server certificate/key and trusted client CA.
+    pub async fn bind_with_mtls(
+        addr: impl Into<String>,
+        server_cert_der: Vec<u8>,
+        server_key_der: Vec<u8>,
+        client_ca_der: Vec<u8>,
+    ) -> Result<Self> {
         let addr_str = addr.into();
         let socket_addr: std::net::SocketAddr = addr_str.parse()
             .map_err(|e| anyhow::anyhow!("invalid address '{}': {}", addr_str, e))?;
-
-        let (certs, key) = generate_self_signed_cert()?;
-
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(rustls::pki_types::CertificateDer::from(client_ca_der))
+            .map_err(|e| anyhow::anyhow!("client CA rejected: {}", e))?;
+        let verifier = rustls::server::WebPkiClientVerifier::builder(Arc::new(roots))
+            .build()
+            .map_err(|e| anyhow::anyhow!("client verifier error: {}", e))?;
         let mut server_crypto = rustls::ServerConfig::builder()
-            .with_no_client_auth()
-            .with_single_cert(certs, key)
+            .with_client_cert_verifier(verifier)
+            .with_single_cert(
+                vec![rustls::pki_types::CertificateDer::from(server_cert_der)],
+                rustls::pki_types::PrivateKeyDer::from(
+                    rustls::pki_types::PrivatePkcs8KeyDer::from(server_key_der),
+                ),
+            )
             .map_err(|e| anyhow::anyhow!("TLS config error: {}", e))?;
         server_crypto.alpn_protocols = vec![b"sensorium-midi/1".to_vec()];
 
@@ -686,14 +694,32 @@ pub struct WebTransportClient {
 impl WebTransportClient {
     /// Connect to a QUIC server at the given address.
     pub async fn connect(url: impl Into<String>) -> Result<Self> {
+        let _ = url;
+        anyhow::bail!("QUIC mTLS is required; use connect_with_mtls with trusted certificates")
+    }
+
+    /// Connect with a trusted CA and client certificate/key for mutual TLS.
+    pub async fn connect_with_mtls(
+        url: impl Into<String>,
+        server_ca_der: Vec<u8>,
+        client_cert_der: Vec<u8>,
+        client_key_der: Vec<u8>,
+    ) -> Result<Self> {
         let url_str = url.into();
         let socket_addr: std::net::SocketAddr = url_str.parse()
             .map_err(|e| anyhow::anyhow!("invalid address '{}': {}", url_str, e))?;
-
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(rustls::pki_types::CertificateDer::from(server_ca_der))
+            .map_err(|e| anyhow::anyhow!("server CA rejected: {}", e))?;
         let mut client_crypto = rustls::ClientConfig::builder()
-            .dangerous()
-            .with_custom_certificate_verifier(Arc::new(SkipServerVerification))
-            .with_no_client_auth();
+            .with_root_certificates(roots)
+            .with_client_auth_cert(
+                vec![rustls::pki_types::CertificateDer::from(client_cert_der)],
+                rustls::pki_types::PrivateKeyDer::from(
+                    rustls::pki_types::PrivatePkcs8KeyDer::from(client_key_der),
+                ),
+            )
+            .map_err(|e| anyhow::anyhow!("client TLS config error: {}", e))?;
         client_crypto.alpn_protocols = vec![b"sensorium-midi/1".to_vec()];
 
         let quic_config = quinn::crypto::rustls::QuicClientConfig::try_from(client_crypto)
@@ -744,56 +770,6 @@ impl WebTransportClient {
     }
 }
 
-/// TLS certificate verifier that accepts any certificate (for development/testing).
-#[derive(Debug)]
-struct SkipServerVerification;
-
-impl rustls::client::danger::ServerCertVerifier for SkipServerVerification {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &rustls::pki_types::CertificateDer<'_>,
-        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
-        _server_name: &rustls::pki_types::ServerName<'_>,
-        _ocsp_response: &[u8],
-        _now: rustls::pki_types::UnixTime,
-    ) -> std::result::Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::danger::ServerCertVerified::assertion())
-    }
-
-    fn verify_tls12_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-    }
-
-    fn verify_tls13_signature(
-        &self,
-        _message: &[u8],
-        _cert: &rustls::pki_types::CertificateDer<'_>,
-        _dss: &rustls::DigitallySignedStruct,
-    ) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
-        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
-    }
-
-    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
-        vec![
-            rustls::SignatureScheme::RSA_PKCS1_SHA256,
-            rustls::SignatureScheme::RSA_PKCS1_SHA384,
-            rustls::SignatureScheme::RSA_PKCS1_SHA512,
-            rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
-            rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
-            rustls::SignatureScheme::ECDSA_NISTP521_SHA512,
-            rustls::SignatureScheme::ED25519,
-            rustls::SignatureScheme::RSA_PSS_SHA256,
-            rustls::SignatureScheme::RSA_PSS_SHA384,
-            rustls::SignatureScheme::RSA_PSS_SHA512,
-        ]
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct WebSocketFallback {
     pub url: String,
@@ -801,7 +777,8 @@ pub struct WebSocketFallback {
 
 impl WebSocketFallback {
     pub async fn connect(url: impl Into<String>) -> Result<Self> {
-        Ok(Self { url: url.into() })
+        let _ = url;
+        anyhow::bail!("legacy WebSocket fallback is disabled; use authenticated QUIC mTLS")
     }
 }
 
@@ -1397,56 +1374,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn quic_server_client_roundtrip() {
-        // Install the ring crypto provider for rustls
-        let _ = rustls::crypto::ring::default_provider().install_default();
-
-        // Start a QUIC server on a random port
-        let server = QuicServer::bind("127.0.0.1:0").await.unwrap();
-        // Get the actual bound address
-        let addr = server.endpoint.as_ref().unwrap().local_addr().unwrap();
-        let addr_str = addr.to_string();
-
-        // Spawn the server accept loop
-        let server_handle = tokio::spawn(async move {
-            // Accept just one connection's worth of streams, then stop
-            if let Some(incoming) = server.endpoint.as_ref().unwrap().accept().await {
-                let conn = incoming.await.unwrap();
-                if let Ok(mut stream) = conn.accept_uni().await {
-                    let len = stream.read_u16().await.unwrap() as usize;
-                    let mut buf = vec![0u8; len];
-                    stream.read_exact(&mut buf).await.unwrap();
-                    // Verify we received a valid UMP packet
-                    let pkt = UmpPacket::from_bytes(&buf).unwrap();
-                    assert_eq!(pkt.message_type, 0x1);
-                    assert_eq!(pkt.status, 0x90);
-                }
-            }
-        });
-
-        // Give the server a moment to start accepting
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-        // Connect a client and send a UMP packet
-        let mut client = WebTransportClient::connect(&addr_str).await.unwrap();
-        let pkt = UmpPacket {
-            message_type: 0x1,
-            group: 0,
-            status: 0x90,
-            data1: 60,
-            data2: 100,
-            data: [0; 12],
-            data_len: 0,
-        };
-        client.send_ump(&pkt).await.unwrap();
-
-        // Wait for the server to process
-        let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            server_handle,
-        ).await;
-
-        client.close();
+    async fn network_transports_fail_closed_without_mtls() {
+        assert!(QuicServer::bind("127.0.0.1:0").await.is_err());
+        assert!(WebTransportClient::connect("127.0.0.1:9").await.is_err());
+        assert!(WebSocketFallback::connect("ws://127.0.0.1:9").await.is_err());
     }
 
     // ── new_32bit & MidiBuffer Ring Buffer Tests ────────────────────

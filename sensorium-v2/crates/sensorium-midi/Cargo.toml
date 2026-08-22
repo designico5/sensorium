@@ -16,7 +16,6 @@ quinn = { workspace = true }
 rustls = { workspace = true }
 tokio = { workspace = true, features = ["full", "rt-multi-thread"] }
 bytes = { workspace = true }
-rcgen = "0.13"
 
 [dev-dependencies]
 criterion = { workspace = true }
