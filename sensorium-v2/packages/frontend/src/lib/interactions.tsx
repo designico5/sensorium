@@ -56,7 +56,11 @@ export function useRotary({
     onChange(newValue);
   }, [min, max, sensitivity, onChange]);
 
-  const handlePointerUp = useCallback(() => {
+  const endDrag = useCallback((e?: React.PointerEvent) => {
+    const target = e?.currentTarget as HTMLElement | undefined;
+    if (e && target && target.hasPointerCapture(e.pointerId)) {
+      target.releasePointerCapture(e.pointerId);
+    }
     isDragging.current = false;
   }, []);
 
@@ -98,7 +102,9 @@ export function useRotary({
     handlers: {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,
-      onPointerUp: handlePointerUp,
+      onPointerUp: endDrag,
+      onPointerCancel: endDrag,
+      onLostPointerCapture: endDrag,
       onWheel: handleWheel,
       onDoubleClick: handleDoubleClick,
       onKeyDown: handleKeyDown,

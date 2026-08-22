@@ -119,6 +119,14 @@ test('MPE and panic handling have native software evidence without physical clai
   }
 });
 
+test('pointer cancellation has frontend evidence', () => {
+  const pointer = matrix.domains
+    .find((domain) => domain.id === 'display-touch')
+    .tests.find((testCase) => testCase.id === 'DSP-009');
+  assert.equal(pointer.status, 'PARTIAL');
+  assert.ok(pointer.evidence.includes('sensorium-v2/packages/frontend/src/lib/interactions.tsx'));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);

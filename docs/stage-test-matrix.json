@@ -103,7 +103,7 @@
         { "id": "DSP-006", "name": "three or more gestures", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "DSP-007", "name": "touch plus pen and mouse", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "DSP-008", "name": "palm rejection", "status": "HIL_REQUIRED", "evidence": [] },
-        { "id": "DSP-009", "name": "pointer cancel and lost capture", "status": "AUTOMATED_OPEN", "evidence": [] },
+        { "id": "DSP-009", "name": "pointer cancel and lost capture", "status": "PARTIAL", "evidence": ["sensorium-v2/packages/frontend/src/lib/interactions.tsx", "sensorium-v2/packages/frontend/src/stage-boundary.test.ts"] },
         { "id": "DSP-010", "name": "reduced motion and high contrast", "status": "PARTIAL", "evidence": ["sensorium-v2/packages/frontend/src/styles/performance.css"] },
         { "id": "DSP-011", "name": "glove and wet-touch conditions", "status": "HIL_REQUIRED", "evidence": [] }
       ]

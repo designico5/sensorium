@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const workspaceSource = readFileSync(new URL('./components/PerformanceWorkspace.tsx', import.meta.url), 'utf8');
 const liveToolsSource = readFileSync(new URL('./components/LiveToolsWorkspace.tsx', import.meta.url), 'utf8');
+const interactionsSource = readFileSync(new URL('./lib/interactions.tsx', import.meta.url), 'utf8');
 
 describe('stage and demo truth boundary', () => {
   it('opens the complete simulation workspace while retaining an explicit stage boundary', () => {
@@ -61,5 +62,11 @@ describe('stage and demo truth boundary', () => {
     expect(appSource).toContain('last.focus()');
     expect(appSource).toContain('first.focus()');
     expect(appSource).toContain('returnFocusRef.current?.focus()');
+  });
+
+  it('ends rotary drags on pointer cancel and lost capture', () => {
+    expect(interactionsSource).toContain('onPointerCancel: endDrag');
+    expect(interactionsSource).toContain('onLostPointerCapture: endDrag');
+    expect(interactionsSource).toContain('releasePointerCapture');
   });
 });
