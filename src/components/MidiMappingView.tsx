@@ -354,7 +354,7 @@ export default function MidiMappingView({
                         addLog('MIDI', 'info', `[MIDI REG] Mapped Control "${map.name}" CC#${map.num} value updated: ${val}`);
                       }
                     }}
-                    style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' } as React.CSSProperties}
+                    style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
                     className="h-24 cursor-pointer accent-neon-magenta bg-white/5 rounded-lg w-1.5"
                   />
                 </div>

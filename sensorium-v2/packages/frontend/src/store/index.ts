@@ -37,7 +37,7 @@ export interface AudioStore {
 
 export const useAudioStore = create<AudioStore>((set, get) => ({
   transport: 'stopped',
-  bpm: 120,
+  bpm: 128,
   beat: 0,
   bar: 0,
   masterLevel: 0.8,
@@ -86,9 +86,9 @@ export interface VisualStore {
 
 export const useVisualStore = create<VisualStore>((set) => ({
   preset: 'nebula',
-  intensity: 0.7,
+  intensity: 0.72,
   colorShift: 0,
-  bloom: 0.5,
+  bloom: 0.61,
   reactive: true,
 
   setPreset: (preset) => set({ preset }),

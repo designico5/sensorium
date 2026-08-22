@@ -6,14 +6,17 @@
   "private": true,
   "version": "2.5.0",
   "type": "module",
+  "main": "electron-main.cjs",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "electron": "electron .",
-    "build:win": "vite build && node -e \"console.log('Checking build output...'); const fs = require('fs'); const path = require('path'); const files = fs.readdirSync('dist'); console.log('Dist files count:', files.length);\"",
+    "build:win": "npm run build && electron-builder --win portable",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.mjs tests/*.test.ts",
+    "check": "npm run lint && npm run build && npm test"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -48,5 +51,28 @@
     "tsx": "^4.23.12",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
+  },
+  "build": {
+    "appId": "com.designico.sensorium.preview",
+    "productName": "Sensorium Preview",
+    "directories": {
+      "output": "dist/windows"
+    },
+    "files": [
+      "dist/index.html",
+      "dist/assets/**",
+      "electron-main.cjs",
+      "package.json",
+      "!dist/server.cjs",
+      "!dist/**/*.map",
+      "!node_modules/**"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "Sensorium-Preview-${version}-Windows-${arch}.${ext}"
+    }
   }
 }

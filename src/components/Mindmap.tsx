@@ -795,7 +795,7 @@ export default function Mindmap({
   };
 
   // Dragging interaction handlers
-  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>, node: PhysicsNode) => {
+  const handleMouseDown = (e: React.MouseEvent<SVGGElement>, node: PhysicsNode) => {
     if (node.id === 'center-bpm') return;
 
     e.preventDefault();
@@ -1971,8 +1971,8 @@ export default function Mindmap({
                     transform={`translate(${node.radius + 12}, 0)`}
                     className="cursor-crosshair hover:scale-125 transition group/socket"
                     onMouseDown={(e) => handleStartCableDrag(e, node.id)}
-                    title="Kabel Ziehen (OUT): Mit anderem Gerät direkt verbinden & triggern"
                   >
+                    <title>Kabel Ziehen (OUT): Mit anderem Gerät direkt verbinden &amp; triggern</title>
                     <circle r="8" fill="#0c0e18" stroke="#f59e0b" strokeWidth="1.5" className="group-hover/socket:stroke-amber-300 group-hover/socket:fill-amber-500/30" />
                     <circle r="3.5" fill="#f59e0b" className="group-hover/socket:fill-amber-300 animate-pulse" />
                     <text x="12" y="3" className="font-mono text-[7px] font-bold fill-amber-400 opacity-0 group-hover/socket:opacity-100 transition pointer-events-none select-none uppercase tracking-wider">
@@ -1987,8 +1987,8 @@ export default function Mindmap({
                     transform={`translate(${-node.radius - 12}, 0)`}
                     className="cursor-crosshair hover:scale-125 transition group/socket"
                     onMouseDown={(e) => handleStartCableDrag(e, node.id)}
-                    title="Kabel Anstecken (IN): Signal von anderem Gerät empfangen"
                   >
+                    <title>Kabel Anstecken (IN): Signal von anderem Gerät empfangen</title>
                     <circle r="8" fill="#0c0e18" stroke="#00f0ff" strokeWidth="1.5" className="group-hover/socket:stroke-cyan-300 group-hover/socket:fill-cyan-500/30" />
                     <circle r="3.5" fill="#00f0ff" className="group-hover/socket:fill-cyan-300 animate-pulse" />
                     <text x="-12" y="3" textAnchor="end" className="font-mono text-[7px] font-bold fill-cyan-400 opacity-0 group-hover/socket:opacity-100 transition pointer-events-none select-none uppercase tracking-wider">

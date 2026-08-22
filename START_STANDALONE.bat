@@ -1,33 +1,31 @@
 @echo off
-title Sensorium Pro - Standalone App Launcher
-color 0A
+setlocal
+title Sensorium Stage Preview - Safe Local Launcher
 cd /d "%~dp0"
 
 echo =======================================================================
-echo    SENSORIUM PRO - STANDALONE OFFLINE / PORTABLE LAUNCHER
-echo    Urheber & Entwickler: Nico Mädler
+echo  SENSORIUM - SAFE LOCAL PREVIEW
+echo  No Defender exclusion. No firewall rule. Loopback access only.
 echo =======================================================================
-echo.
 
-:: 1. Automatische Defender-Ausnahme fuer den aktuellen Ordner setzen
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionPath '%~dp0' -ErrorAction SilentlyContinue" >nul 2>&1
-
-:: 2. Firewall-Ports freischalten (3000 Web, 8000 OSC, 9000 MTC)
-netsh advfirewall firewall add rule name="Sensorium Web 3000" dir=in action=allow protocol=TCP localport=3000 profile=any >nul 2>&1
-netsh advfirewall firewall add rule name="Sensorium OSC 8000" dir=in action=allow protocol=UDP localport=8000 profile=any >nul 2>&1
-netsh advfirewall firewall add rule name="Sensorium MTC 9000" dir=in action=allow protocol=UDP localport=9000 profile=any >nul 2>&1
-
-:: 3. Prufe Node.js und starte im autarken App-Fenster
 where node >nul 2>&1
 if errorlevel 1 (
-    echo [+] Offline-Modus ohne Node: Starte isoliertes App-Fenster direkt...
-    start msedge --app="%CD%\dist\index.html" 2>nul || start chrome --app="%CD%\dist\index.html" 2>nul || start "" "dist\index.html"
-    exit /b 0
+  echo [BLOCKED] Node.js is not installed or not on PATH.
+  echo Install an approved Node.js LTS build, then run this launcher again.
+  pause
+  exit /b 1
 )
 
-echo [+] Node.js erkannt! Starte Sensorium Engine im Hintergrund (Port 3000)...
-start /min cmd /c "node server.ts"
-timeout /t 2 /nobreak >nul
+if not exist "node_modules" (
+  echo [BLOCKED] Dependencies are not installed.
+  echo Run: npm ci
+  echo Review the lockfile and lifecycle scripts before installing on a stage PC.
+  pause
+  exit /b 1
+)
 
-echo [+] Starte Sensorium OS in eigenem rahmenlosen App-Fenster...
-start msedge --app=http://localhost:3000 2>nul || start chrome --app=http://localhost:3000 2>nul || start http://localhost:3000
+echo Starting the local service on 127.0.0.1 only...
+start "Sensorium Local Service" /min cmd /c "npm run dev"
+timeout /t 3 /nobreak >nul
+start "" "http://127.0.0.1:3000"
+exit /b 0

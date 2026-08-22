@@ -1,15 +1,26 @@
 name: Verify Gate
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [master, main, develop]
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
 
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
 jobs:
+  stage-matrix:
+    name: Stage Matrix Contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate physical-stage matrix coverage
+        run: node --test tests/stage-matrix-policy.test.mjs
+
   rust-check:
     name: Rust Workspace Check
     runs-on: windows-latest
@@ -64,8 +75,47 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npx tsc --noEmit
-        continue-on-error: true
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
+
+  v2-frontend-check:
+    name: Sensorium V2 Frontend
+    runs-on: ubuntu-latest
+    needs: stage-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: sensorium-v2/package-lock.json
+      - run: npm ci
+        working-directory: sensorium-v2
+      - run: npm --workspace @sensorium/frontend run build
+        working-directory: sensorium-v2
+      - run: npm --workspace @sensorium/frontend test
+        working-directory: sensorium-v2
+
+  mobile-preview-check:
+    name: MA-II-MI Mobile Preview
+    runs-on: ubuntu-latest
+    needs: stage-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: sensorium-v2/apps/ma-ii-mi-prototype/package-lock.json
+      - run: npm ci
+        working-directory: sensorium-v2/apps/ma-ii-mi-prototype
+      - run: npm run check:runtime
+        working-directory: sensorium-v2/apps/ma-ii-mi-prototype
+      - run: npm run build
+        working-directory: sensorium-v2/apps/ma-ii-mi-prototype
+      - run: npm run test:sites
+        working-directory: sensorium-v2/apps/ma-ii-mi-prototype
 
   security-audit:
     name: Security Audit

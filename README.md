@@ -10,9 +10,28 @@
 
 </div>
 
+![Sensorium Spatial Gallery web design](docs/assets/sensorium-webapp-spatial-gallery.png)
+
+<p align="center"><sub>The current Sensorium Spatial Gallery web design, reproduced directly in this README. GitHub READMEs are static, so the working navigation, plan finder, checkout demo, and release manifest remain part of the web app rather than the image.</sub></p>
+
+<div align="center">
+
+### Preview and release status
+
+**No public binary release is currently available.** The [GitHub Releases page](https://github.com/designico5/sensorium/releases) is intentionally the source of truth and remains empty until a signed, reproducible artifact has passed the stage-test matrix. The local browser previews are documented below; a local debug APK may exist in a developer checkout, but it is not a production download.
+
+<sub>Do not disable Windows Defender, Android Play Protect, or host firewalls. macOS DMG and iOS IPA are not offered until they can be built, signed, notarized, and tested on Apple tooling.</sub>
+
+</div>
+
+<details>
+<summary>Spatial MA-II-MI room concept</summary>
+
 ![MA-II-MI spatial-room design target](docs/assets/ma-ii-mi-spatial-room-concept.png)
 
-<p align="center"><sub>MA-II-MI spatial-room design target. The equipment, signals, catalog items, telemetry, AR state, and performance values shown here are illustrative—not live hardware readback.</sub></p>
+<p align="center"><sub>The equipment, signals, catalog items, telemetry, AR state, and performance values shown here are illustrative—not live hardware readback.</sub></p>
+
+</details>
 
 ---
 
@@ -39,7 +58,7 @@ Sensorium targets the demands of hybrid electronic performance, large-format liv
 | MA-II-MI | **Interactive mobile web prototype** | Room, Patch, Discover, Scenarios, Devices, and extensive personal/safety settings run inside the Pixel/iPhone preview runtime. |
 | Rust core | **Implemented modular foundation** | Audio/DSP, MIDI, sync, visual, contracts, AI templates, health, and release crates exist with unit/integration/benchmark coverage in the workspace. |
 | Desktop shell | **Tauri integration scaffold** | IPC commands and the native shell exist; packaging and end-to-end hardware validation remain separate release work. |
-| Native Android | **Planned integration** | The browser prototype is not yet a signed Android APK. Camera, ARCore depth, S Pen services, hardware readback, and background audio require the native layer. |
+| Native Android | **Installable debug preview** | A native Jetpack Compose APK provides Room, Patch, Audition, and release-status flows. It is debug-signed for local installation, uses a separate `.debug` package ID, and does not yet include ARCore depth, S Pen services, or production hardware readback. |
 | 3D / AR / VR | **Design target + simulated interaction** | Phone/AR/VR modes, room sweep, spatial layers, anchors, and device hotspots demonstrate the interaction model; native tracking is not connected. |
 | Discovery library | **Fictional demo catalog** | Acapella, MIDI, multitrack, and stem entries demonstrate UX only. No commercial catalog or licensing backend ships here. |
 
@@ -144,6 +163,7 @@ flowchart LR
 |---|---|
 | `sensorium-v2/packages/frontend/` | Active Sensorium V2 React/Vite Desktop Performance Canvas. |
 | `sensorium-v2/apps/ma-ii-mi-prototype/` | Interactive MA-II-MI mobile web prototype and protected device-preview runtime. |
+| `sensorium-v2/apps/ma-ii-mi-android/` | Native Jetpack Compose MA-II-MI debug preview for Android 8+ devices. |
 | `sensorium-v2/crates/sensorium-audio/` | Audio plugin surface, DSP graph, metering, and neural-audio abstractions. |
 | `sensorium-v2/crates/sensorium-dsp/` | DSP graph types, musical transport, modulation, and scratch-memory arena. |
 | `sensorium-v2/crates/sensorium-midi/` | UMP parsing/routing, MPE, MIDI learn, panic messages, and network transport experiments. |
@@ -165,7 +185,7 @@ flowchart LR
 - Node.js 20 or newer and npm.
 - A modern Chromium-based browser for the interactive previews.
 - Rust stable and platform build tools only if you want to build the Rust/Tauri workspace.
-- Android Studio is required later for the native MA-II-MI APK; it is not required for the browser prototype.
+- Android Studio and JDK 17 are required only when rebuilding the native MA-II-MI APK; neither is required for the browser prototype or direct APK installation.
 
 ### 1. Run Sensorium V2 Desktop
 
@@ -190,7 +210,7 @@ npm run check:runtime
 npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
-Open **[http://localhost:5174](http://localhost:5174)** and select the Android device frame from the preview menu.
+Open **[http://localhost:5175](http://localhost:5175)** and select the Android device frame from the preview menu.
 
 ### 3. Build and verify the frontends
 

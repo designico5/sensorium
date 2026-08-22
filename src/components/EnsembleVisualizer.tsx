@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 interface EnsembleVisualizerProps {
-  activeTab: 'mindmap' | 'diagnostics' | 'midimapping' | 'triggerusb' | 'activitylogger' | 'multirecord' | 'trxblueprint' | 'code' | 'export';
+  activeTab: 'mindmap' | 'diagnostics' | 'midimapping' | 'triggerusb' | 'activitylogger' | 'multirecord' | 'trxblueprint' | 'code' | 'export' | 'presskit' | 'customdashboard' | 'spatial3d' | 'spatial5d' | 'tripleaudit' | 'arrgenius' | 'snapshotmorph' | 'remoteportal' | 'acousticlab';
   displayMode: 'smartest_focus' | 'standard' | 'nerdy' | 'custom';
   customSettings?: {
     glowStrength: number;

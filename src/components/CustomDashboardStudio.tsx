@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MidiDevice, SystemLog } from '../types';
+import type { ActiveTab } from '../navigation';
 import IsometricDevice from './IsometricDevice';
 import Spatial3DClusterView from './Spatial3DClusterView';
 import Spatial5DStadiumEngine from './Spatial5DStadiumEngine';
@@ -74,6 +75,7 @@ export interface DashboardWidget {
 
 interface CustomDashboardStudioProps {
   devices: MidiDevice[];
+  setDevices: React.Dispatch<React.SetStateAction<MidiDevice[]>>;
   activeSignals: string[];
   bpm: number;
   setBpm: (bpm: number) => void;
@@ -81,16 +83,26 @@ interface CustomDashboardStudioProps {
   setIsPlaying: (playing: boolean) => void;
   selectedDevice: MidiDevice | null;
   setSelectedDevice: (dev: MidiDevice | null) => void;
-  addLog: (category: SystemLog['category'], level: SystemLog['level'], message: string) => void;
+  addLog: (source: SystemLog['source'], level: SystemLog['level'], message: string) => void;
   runDiagnosticsRepair: (id: string) => void;
   logs: SystemLog[];
   language: 'de' | 'en';
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
   latencySafetyBuffer?: number;
   setLatencySafetyBuffer?: (buf: number) => void;
   isClipAutomatic?: boolean;
   setIsClipAutomatic?: (auto: boolean) => void;
+  usbPollingRate: '125' | '250' | '500' | '1000';
+  setUsbPollingRate: (rate: '125' | '250' | '500' | '1000') => void;
+  usbVoltageSim: number;
+  setUsbVoltageSim: (volts: number) => void;
+  triggerThreshold: number;
+  setTriggerThreshold: (value: number) => void;
+  crosstalkCancellation: number;
+  setCrosstalkCancellation: (value: number) => void;
+  usbPowerSavingBlocked: boolean;
+  setUsbPowerSavingBlocked: (blocked: boolean) => void;
   isCustomizingMode?: boolean;
   setIsCustomizingMode?: (val: boolean) => void;
 }
@@ -232,6 +244,7 @@ const DEFAULT_WIDGETS: DashboardWidget[] = [
 
 export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
   devices,
+  setDevices,
   activeSignals,
   bpm,
   setBpm,
@@ -248,7 +261,17 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
   latencySafetyBuffer = 12,
   setLatencySafetyBuffer,
   isClipAutomatic = false,
-  setIsClipAutomatic
+  setIsClipAutomatic,
+  usbPollingRate,
+  setUsbPollingRate,
+  usbVoltageSim,
+  setUsbVoltageSim,
+  triggerThreshold,
+  setTriggerThreshold,
+  crosstalkCancellation,
+  setCrosstalkCancellation,
+  usbPowerSavingBlocked,
+  setUsbPowerSavingBlocked,
 }) => {
   const STORAGE_KEY = 'sensorium_custom_dashboard_v2';
 
@@ -451,9 +474,11 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
           <div className="min-h-[280px]">
             <Spatial3DClusterView
               devices={devices}
-              activeSignals={activeSignals}
-              selectedDevice={selectedDevice}
+              activeDevice={selectedDevice}
               onSelectDevice={(d) => setSelectedDevice(d)}
+              bpm={bpm}
+              isPlaying={isPlaying}
+              addLog={addLog}
             />
           </div>
         );
@@ -465,7 +490,6 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
               devices={devices}
               bpm={bpm}
               isPlaying={isPlaying}
-              activeSignals={activeSignals}
               addLog={addLog}
             />
           </div>
@@ -476,8 +500,6 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
           <SnapshotMorphSuite
             devices={devices}
             addLog={addLog}
-            bpm={bpm}
-            isPlaying={isPlaying}
           />
         );
 
@@ -485,9 +507,7 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
         return (
           <AudiophileAcousticLab
             devices={devices}
-            activeSignals={activeSignals}
             addLog={addLog}
-            isPlaying={isPlaying}
             bpm={bpm}
           />
         );
@@ -495,10 +515,7 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
       case 'daw_production':
         return (
           <DAWProductionHub
-            devices={devices}
-            activeSignals={activeSignals}
             bpm={bpm}
-            isPlaying={isPlaying}
             addLog={addLog}
           />
         );
@@ -507,9 +524,7 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
         return (
           <MultiChannelRecorderView
             devices={devices}
-            activeSignals={activeSignals}
             bpm={bpm}
-            isPlaying={isPlaying}
             addLog={addLog}
           />
         );
@@ -518,12 +533,10 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
         return (
           <QuantumInstinctMatrix
             devices={devices}
+            setDevices={setDevices}
             addLog={addLog}
             bpm={bpm}
-            isPlaying={isPlaying}
-            onTriggerImpulse={(presetName) => {
-              addLog('SYSTEM', 'info', `[INSTINCT] Preset ${presetName} im Individualmodus ausgelöst.`);
-            }}
+            setActiveTab={setActiveTab}
           />
         );
 
@@ -532,8 +545,7 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
           <TripleAuditHardeningSuite
             devices={devices}
             addLog={addLog}
-            latencySafetyBuffer={latencySafetyBuffer}
-            setLatencySafetyBuffer={setLatencySafetyBuffer}
+            bpm={bpm}
           />
         );
 
@@ -541,26 +553,51 @@ export const CustomDashboardStudio: React.FC<CustomDashboardStudioProps> = ({
         return (
           <TriggerUsbView
             devices={devices}
-            activeSignals={activeSignals}
             addLog={addLog}
+            pollingRate={usbPollingRate}
+            onPollingRateChange={setUsbPollingRate}
+            voltageSim={usbVoltageSim}
+            onVoltageSimChange={setUsbVoltageSim}
+            threshold={triggerThreshold}
+            onThresholdChange={setTriggerThreshold}
+            crosstalk={crosstalkCancellation}
+            onCrosstalkChange={setCrosstalkCancellation}
+            powerSavingBlocked={usbPowerSavingBlocked}
+            onPowerSavingBlockedChange={setUsbPowerSavingBlocked}
           />
         );
 
       case 'remote_portal':
         return (
           <RemoteSyncPortal
-            devices={devices}
             addLog={addLog}
             bpm={bpm}
-            isPlaying={isPlaying}
           />
         );
 
       case 'activity_logger':
         return (
           <ActivityLoggerView
-            logs={logs}
+            bpm={bpm}
+            isPlaying={isPlaying}
+            devices={devices}
+            alerts={logs
+              .filter((log) => log.level === 'warn' || log.level === 'error')
+              .map((log) => ({ id: log.id, acknowledged: false }))}
             addLog={addLog}
+            isClipAutomatic={isClipAutomatic}
+            onAutoHealAll={() => {
+              const unhealthyDevices = devices.filter((device) => device.status !== 'Healthy');
+              unhealthyDevices.forEach((device) => runDiagnosticsRepair(device.id));
+              addLog(
+                'SYSTEM',
+                unhealthyDevices.length > 0 ? 'info' : 'success',
+                unhealthyDevices.length > 0
+                  ? `[AUTO HEAL] Reparatur für ${unhealthyDevices.length} Gerät(e) ausgelöst.`
+                  : '[AUTO HEAL] Prüfung abgeschlossen; keine fehlerhaften Geräte gefunden.',
+              );
+            }}
+            latencySafetyBuffer={latencySafetyBuffer}
           />
         );
 

@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0.0",
+  "title": "Sensorium physical-stage verification matrix",
+  "truthRule": "A capability is PASS only when the referenced evidence contains the exact target, measured result, timestamp, operator and recovery result. UI simulation is never physical evidence.",
+  "statusVocabulary": [
+    "PASS",
+    "PARTIAL",
+    "AUTOMATED_OPEN",
+    "HIL_REQUIRED",
+    "BLOCKED_BUILD",
+    "BLOCKED_SECURITY",
+    "NOT_STARTED"
+  ],
+  "domains": [
+    {
+      "id": "software",
+      "gate": "G1",
+      "required": true,
+      "tests": [
+        { "id": "SW-001", "name": "unit tests", "status": "PARTIAL", "evidence": ["tests/", "sensorium-v2/packages/frontend/src/stage-boundary.test.ts"] },
+        { "id": "SW-002", "name": "integration tests", "status": "AUTOMATED_OPEN", "evidence": [] },
+        { "id": "SW-003", "name": "contract tests", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "SW-004", "name": "property-based tests", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "SW-005", "name": "parser fuzzing", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "SW-006", "name": "snapshot and migration tests", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "SW-007", "name": "real-browser E2E", "status": "AUTOMATED_OPEN", "evidence": [] },
+        { "id": "SW-008", "name": "accessibility", "status": "PARTIAL", "evidence": ["sensorium-v2/packages/frontend/src/stage-boundary.test.ts"] },
+        { "id": "SW-009", "name": "visual regression", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "SW-010", "name": "offline and recovery", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "SW-011", "name": "upgrade and rollback", "status": "NOT_STARTED", "evidence": [] }
+      ]
+    },
+    {
+      "id": "audio-hardware",
+      "gate": "G4",
+      "required": true,
+      "tests": [
+        { "id": "AUD-001", "name": "buffer sizes", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-002", "name": "44.1 / 48 / 88.2 / 96 / 192 kHz", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-003", "name": "ASIO", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-004", "name": "WASAPI Exclusive", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-005", "name": "CoreAudio", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-006", "name": "interface disconnect during playback", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-007", "name": "sample-rate change", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-008", "name": "clock-master loss", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-009", "name": "word-clock failure", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-010", "name": "XRUN and underrun handling", "status": "BLOCKED_BUILD", "evidence": [] },
+        { "id": "AUD-011", "name": "8 / 12 / 24 hour soak", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-012", "name": "CPU spikes", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-013", "name": "memory pressure", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-014", "name": "thermal throttling", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-015", "name": "suspend and resume", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-016", "name": "USB hub failure", "status": "HIL_REQUIRED", "evidence": [] }
+      ]
+    },
+    {
+      "id": "midi",
+      "gate": "G3",
+      "required": true,
+      "tests": [
+        { "id": "MID-001", "name": "MIDI 1.0", "status": "BLOCKED_BUILD", "evidence": [] },
+        { "id": "MID-002", "name": "MIDI 2.0", "status": "BLOCKED_BUILD", "evidence": [] },
+        { "id": "MID-003", "name": "UMP", "status": "BLOCKED_BUILD", "evidence": [] },
+        { "id": "MID-004", "name": "MPE", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-005", "name": "SysEx and large SysEx", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-006", "name": "Clock and Start/Stop/Continue", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-007", "name": "Song Position Pointer", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-008", "name": "hotplug and port changes", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-009", "name": "same-name endpoint disambiguation", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-010", "name": "device replacement", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-011", "name": "packet loss and burst traffic", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "MID-012", "name": "malformed packets", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "MID-013", "name": "rogue endpoint", "status": "BLOCKED_SECURITY", "evidence": [] },
+        { "id": "MID-014", "name": "panic and All Notes Off", "status": "HIL_REQUIRED", "evidence": [] }
+      ]
+    },
+    {
+      "id": "network-sync",
+      "gate": "G3",
+      "required": true,
+      "tests": [
+        { "id": "NET-001", "name": "cable pull and switch restart", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "NET-002", "name": "packet loss, jitter, reordering and duplicates", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "NET-003", "name": "100 Mbit / 1 Gbit / WLAN", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "NET-004", "name": "DHCP change and IP conflict", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "NET-005", "name": "PTP master change and split brain", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "NET-006", "name": "offline and rejoin", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "NET-007", "name": "compromised certificate", "status": "BLOCKED_SECURITY", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
+        { "id": "NET-008", "name": "unauthorized client", "status": "BLOCKED_SECURITY", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
+        { "id": "NET-009", "name": "rate limiting and DoS resistance", "status": "NOT_STARTED", "evidence": [] }
+      ]
+    },
+    {
+      "id": "display-touch",
+      "gate": "G2",
+      "required": true,
+      "tests": [
+        { "id": "DSP-001", "name": "Full HD / 1440p / 4K / 5K / 8K", "status": "AUTOMATED_OPEN", "evidence": ["sensorium-v2/packages/frontend/src/styles/performance.css"] },
+        { "id": "DSP-002", "name": "100 / 125 / 150 / 200 percent scaling", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-003", "name": "60 / 90 / 120 / 144 Hz frame budget", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-004", "name": "real ten-point touch", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-005", "name": "two simultaneous faders", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-006", "name": "three or more gestures", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-007", "name": "touch plus pen and mouse", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-008", "name": "palm rejection", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "DSP-009", "name": "pointer cancel and lost capture", "status": "AUTOMATED_OPEN", "evidence": [] },
+        { "id": "DSP-010", "name": "reduced motion and high contrast", "status": "PARTIAL", "evidence": ["sensorium-v2/packages/frontend/src/styles/performance.css"] },
+        { "id": "DSP-011", "name": "glove and wet-touch conditions", "status": "HIL_REQUIRED", "evidence": [] }
+      ]
+    },
+    {
+      "id": "physical-acceptance",
+      "gate": "G4",
+      "required": true,
+      "recordSchema": ["device", "firmware", "driver", "os", "connection", "testCase", "expected", "measured", "latency", "jitter", "failureMode", "recoveryTime", "log", "timestamp", "operator", "result"],
+      "tests": [
+        { "id": "HIL-001", "name": "audio interface acceptance", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "HIL-002", "name": "MIDI endpoint acceptance", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "HIL-003", "name": "clock and network acceptance", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "HIL-004", "name": "S23 Ultra mobile acceptance", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "HIL-005", "name": "touch-display acceptance", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "HIL-006", "name": "disconnect/reconnect recovery", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "HIL-007", "name": "thermal and long-run acceptance", "status": "HIL_REQUIRED", "evidence": [] }
+      ]
+    }
+  ]
+}

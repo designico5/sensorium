@@ -84,8 +84,7 @@ interface AuraStudioCoachProps {
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
   scanWebMidiHardware: () => void;
-  loadDemoDevices: () => void;
-  triggerRealMidiPanic: () => void;
+  demoMode: boolean;
   activeTab: string;
   setActiveTab: (tab: any) => void;
 }
@@ -110,22 +109,22 @@ export default function AuraStudioCoach({
   isPlaying,
   setIsPlaying,
   scanWebMidiHardware,
-  loadDemoDevices,
-  triggerRealMidiPanic,
+  demoMode,
   activeTab,
   setActiveTab,
 }: AuraStudioCoachProps) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [userInput, setUserInput] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState<boolean>(true);
+  const [voiceOutputEnabled, setVoiceOutputEnabled] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const backendAvailable = typeof window !== 'undefined' && window.location.protocol !== 'file:';
 
   const [messages, setMessages] = useState<CoachMessage[]>([
     {
       id: 'welcome',
       sender: 'aura',
-      text: 'Hallo! Ich bin AURA, dein KI-Live-Performance Coach. Sensorium OS überwacht aktuell deine MIDI-Hardware & Latenz-Busse in Echtzeit. Wie kann ich dir für deinen Gig, dein Routing oder dein Studio-Setup helfen?',
+      text: 'Hallo! Ich bin AURA, dein beratender KI-Live-Performance-Coach. Ich kann Prüfabläufe, Routing und Studio-Setups einordnen, führe aber keine Geräteaktionen aus und behaupte keine ungemessene Hardware-Telemetrie.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -230,8 +229,12 @@ export default function AuraStudioCoach({
 
   // Quick Action Presets
   const run50DeviceRig = () => {
+    if (!demoMode) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Virtuelle Groß-Rigs sind ausschließlich über den Demo-Button verfügbar.');
+      return;
+    }
     setIsAnalyzing(true);
-    addLog('SYSTEM', 'info', '[AURA COACH] Generiere 50-Geräte High-Density Performance Ensemble...');
+    addLog('SYSTEM', 'info', '[AURA DEMO] Generiere ein isoliertes virtuelles 50-Geräte-Ensemble...');
     
     setTimeout(() => {
       const generatedDevices: MidiDevice[] = Array.from({ length: 50 }).map((_, i) => {
@@ -245,6 +248,10 @@ export default function AuraStudioCoach({
           name: `${namePrefix} #${i + 1}`,
           type: type as any,
           status: 'Healthy',
+          isPhysicalHardware: false,
+          connectionType: 'VIRTUAL_SIMULATION',
+          operationalMode: 'DEMO',
+          telemetryVerified: false,
           portNameIn: `USB MIDI In ${i + 1}`,
           portNameOut: `USB MIDI Out ${i + 1}`,
           bufferUsage: Math.floor(Math.random() * 15) + 3,
@@ -272,9 +279,9 @@ export default function AuraStudioCoach({
 
       setDevices(generatedDevices);
       setIsAnalyzing(false);
-      addLog('SYSTEM', 'success', '[AURA COACH] 50 physische & virtuelle MIDI-Knoten erfolgreich initialisiert. Jitter-Varianz < 0.05ms.');
+      addLog('SYSTEM', 'info', '[AURA DEMO] 50 virtuelle Knoten im isolierten Demo-Speicher erzeugt. Keine physische Messung.');
       
-      const confirmText = '50-Geräte Groß-Ensemble erfolgreich im Speicher verankert! Der DMA Hyper-Lane Bus hält die Latenz stabil unter 0.1ms.';
+      const confirmText = 'Das virtuelle 50-Geräte-Ensemble ist im isolierten Demo-Modus geladen. Angezeigte Latenzen sind Simulationswerte und keine Bühnenmessung.';
       setMessages((prev) => [
         ...prev,
         {
@@ -293,8 +300,12 @@ export default function AuraStudioCoach({
   };
 
   const optimizeZeroLatency = () => {
+    if (!demoMode) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Der virtuelle Latenz-Tuner ist nur im isolierten Demo-Modus verfügbar.');
+      return;
+    }
     setIsAnalyzing(true);
-    addLog('SYSTEM', 'info', '[AURA COACH] Kalibriere 0ms Latenz-Engine...');
+    addLog('SYSTEM', 'info', '[AURA DEMO] Simuliere eine Pufferänderung ohne Betriebssystem- oder Gerätezugriff...');
 
     setTimeout(() => {
       setDevices((prev) =>
@@ -308,9 +319,9 @@ export default function AuraStudioCoach({
         }))
       );
       setIsAnalyzing(false);
-      addLog('SYSTEM', 'success', '[AURA COACH] Hardware-GNO DMA Puffer auf 32 Samples zentriert. OS Energy-Saver Override erzwungen.');
+      addLog('SYSTEM', 'info', '[AURA DEMO] Virtuelle Pufferwerte geändert. Keine Hardware- oder OS-Einstellung verändert.');
 
-      const confirmText = 'Latenz-Engine auf 0.08 ms kalibriert! USB-Suspension wurde im OS deaktiviert und alle Puffer auf ultra-schnelle 32 Samples gesetzt.';
+      const confirmText = 'Die Demo zeigt jetzt 32 Samples und 0,08 ms als rein virtuelle Zielwerte. Für den Stage-Modus wurde nichts verändert oder freigegeben.';
       setMessages((prev) => [
         ...prev,
         {
@@ -348,6 +359,24 @@ export default function AuraStudioCoach({
     const text = textToSend || userInput;
     if (!text.trim()) return;
 
+    if (!demoMode) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] AURA-Demo ist außerhalb des isolierten Demo-Workspace deaktiviert.');
+      return;
+    }
+
+    if (!backendAvailable) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          sender: 'aura',
+          text: 'AURA benötigt die verbundene Sensorium Web-App. In der portablen Windows-Vorschau bleiben Chat und Mikrofon bewusst deaktiviert; Geräte-, Diagnose- und Routing-Ansichten funktionieren lokal weiter.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      return;
+    }
+
     const userMsg: CoachMessage = {
       id: Date.now().toString(),
       sender: 'user',
@@ -372,18 +401,36 @@ export default function AuraStudioCoach({
             latency: '0.08ms',
             bufferSize: '32 Samples',
           },
-          history: messages.slice(-6).map((m) => ({ sender: m.sender, text: m.text })),
+          history: messages.slice(-6).map((m) => ({ sender: m.sender, text: m.text.slice(0, 2_000) })),
         }),
       });
 
       const data = await res.json();
-      const replyText = data.reply || 'Ich habe deine Nachricht analysiert. Alle Systeme laufen im perfekten Kreislauf.';
+      if (!res.ok) {
+        const securityText = data.auditId
+          ? `Der Sicherheitsguard hat diese Eingabe isoliert und nicht an AURA weitergegeben. Audit-ID: ${data.auditId}`
+          : 'AURA konnte diese Eingabe nicht sicher verarbeiten. Es wurde keine Geräteaktion ausgeführt.';
+        setIsAnalyzing(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'aura',
+            text: securityText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+        return;
+      }
+      const replyText = typeof data.reply === 'string' && data.reply.trim()
+        ? data.reply.slice(0, 6_000)
+        : 'AURA hat keine sichere Antwort erzeugt. Es wurde keine Geräteaktion ausgeführt.';
 
       let btnAction: { label: string; onClick: () => void } | undefined = undefined;
       const lower = text.toLowerCase();
-      if (lower.includes('0ms') || lower.includes('latenz') || lower.includes('buffer')) {
-        btnAction = { label: '0ms Modus Aktivieren', onClick: optimizeZeroLatency };
-      } else if (lower.includes('50') || lower.includes('100') || lower.includes('geräte') || lower.includes('rig')) {
+      if (demoMode && (lower.includes('0ms') || lower.includes('latenz') || lower.includes('buffer'))) {
+        btnAction = { label: 'Demo-Puffer simulieren', onClick: optimizeZeroLatency };
+      } else if (demoMode && (lower.includes('50') || lower.includes('100') || lower.includes('geräte') || lower.includes('rig'))) {
         btnAction = { label: '50-Geräte Rig Laden', onClick: run50DeviceRig };
       } else if (lower.includes('ableton') || lower.includes('script') || lower.includes('udp')) {
         btnAction = { label: 'DAW Bridge öffnen', onClick: () => setActiveTab('code') };
@@ -407,7 +454,7 @@ export default function AuraStudioCoach({
     } catch (err) {
       console.error('Error contacting AURA chat API:', err);
       setIsAnalyzing(false);
-      const fallbackText = 'Ich habe deine Anfrage empfangen. Die Signalwege, der Clock-Drift und die Port-Stabilität befinden sich im optimalen Kreislauf.';
+      const fallbackText = 'AURA ist momentan nicht erreichbar. Es wurde keine Geräteaktion ausgeführt und kein Hardwarezustand bestätigt.';
       setMessages((prev) => [
         ...prev,
         {
@@ -431,7 +478,7 @@ export default function AuraStudioCoach({
             <div className="w-8 h-8 rounded-xl bg-neon-cyan/15 border border-neon-cyan/40 flex items-center justify-center text-neon-cyan shadow-[0_0_12px_rgba(0,240,255,0.3)]">
               <Bot className="w-4 h-4 animate-pulse" />
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-neon-green border-2 border-black" />
+            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black ${backendAvailable ? 'bg-neon-green' : 'bg-amber-400'}`} />
           </div>
 
           <div>
@@ -439,13 +486,15 @@ export default function AuraStudioCoach({
               <span className="font-display font-extrabold text-xs uppercase tracking-wider text-white">
                 AURA <span className="text-neon-cyan font-mono font-normal text-[10px]">KI LIVE OS COACH</span>
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[9px] font-bold">
-                GEMINI 3.6 FLASH VERBUNDEN
+              <span className={`px-2 py-0.5 rounded-full border font-mono text-[9px] font-bold ${backendAvailable ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'}`}>
+                {backendAvailable ? 'AURA BACKEND VERBUNDEN' : 'AURA NUR IN WEB-APP'}
               </span>
             </div>
             <p className="font-sans text-[11px] text-gray-300">
-              {devices.length > 0
-                ? `${devices.length} MIDI-Geräte aktiv. Sprachassistent & Audio-Analyse bereit.`
+              {!backendAvailable
+                ? 'Portable Vorschau: lokale Geräte-, Diagnose- und Routing-Funktionen sind verfügbar.'
+                : devices.length > 0
+                ? `${devices.length} ${demoMode ? 'virtuelle Demo-Knoten' : 'erkannte Port-Einträge'}. AURA bleibt rein beratend.`
                 : 'Scanne Hardware oder frage AURA nach Audio-Einrichtungstipps.'}
             </p>
           </div>
@@ -464,21 +513,25 @@ export default function AuraStudioCoach({
             <span className="hidden sm:inline">{voiceOutputEnabled ? 'Audio AN' : 'Audio STUMM'}</span>
           </button>
 
-          <button
-            onClick={run50DeviceRig}
-            className="px-2.5 py-1 bg-white/5 hover:bg-neon-cyan/15 text-gray-200 hover:text-neon-cyan border border-white/10 hover:border-neon-cyan/30 rounded-lg text-[10px] font-mono transition flex items-center gap-1.5"
-            title="Lade 50-Geräte Groß-Ensemble"
-          >
-            <Zap className="w-3 h-3 text-neon-cyan" /> 50-Rig Test
-          </button>
+          {demoMode && (
+            <>
+              <button
+                onClick={run50DeviceRig}
+                className="px-2.5 py-1 bg-white/5 hover:bg-neon-cyan/15 text-gray-200 hover:text-neon-cyan border border-white/10 hover:border-neon-cyan/30 rounded-lg text-[10px] font-mono transition flex items-center gap-1.5"
+                title="Lade ein isoliertes virtuelles 50-Geräte-Ensemble"
+              >
+                <Zap className="w-3 h-3 text-neon-cyan" /> Demo: 50-Rig
+              </button>
 
-          <button
-            onClick={optimizeZeroLatency}
-            className="px-2.5 py-1 bg-white/5 hover:bg-neon-green/15 text-gray-200 hover:text-neon-green border border-white/10 hover:border-neon-green/30 rounded-lg text-[10px] font-mono transition flex items-center gap-1.5"
-            title="Optimiere DMA & USB Puffer"
-          >
-            <Clock className="w-3 h-3 text-neon-green" /> 0ms Tuner
-          </button>
+              <button
+                onClick={optimizeZeroLatency}
+                className="px-2.5 py-1 bg-white/5 hover:bg-neon-green/15 text-gray-200 hover:text-neon-green border border-white/10 hover:border-neon-green/30 rounded-lg text-[10px] font-mono transition flex items-center gap-1.5"
+                title="Simuliere Pufferwerte ohne Gerätezugriff"
+              >
+                <Clock className="w-3 h-3 text-neon-green" /> Demo: Puffer
+              </button>
+            </>
+          )}
 
           <button
             onClick={checkPinoutBlueprints}
@@ -502,6 +555,11 @@ export default function AuraStudioCoach({
       {/* Expanded Interactive Assistant Panel */}
       {isExpanded && (
         <div className="mt-4 pt-4 border-t border-white/10 animate-fade-in space-y-3">
+          {!backendAvailable && (
+            <div role="status" className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-100">
+              AURA-Chat und Spracheingabe sind in dieser portablen Vorschau deaktiviert. Öffne die verbundene Web-App, um den Coach zu verwenden.
+            </div>
+          )}
           
           {/* Chat Stream History */}
           <div className="max-h-[260px] overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-white/10">
@@ -570,7 +628,8 @@ export default function AuraStudioCoach({
               <button
                 key={idx}
                 onClick={() => handleSendMessage(q)}
-                className="px-2.5 py-1 bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white border border-white/10 rounded-lg transition"
+                disabled={!backendAvailable}
+                className="px-2.5 py-1 bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white border border-white/10 rounded-lg transition disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {q}
               </button>
@@ -581,12 +640,13 @@ export default function AuraStudioCoach({
           <div className="flex gap-2 items-center">
             <button
               onClick={toggleVoiceInput}
+              disabled={!demoMode || !backendAvailable}
               className={`p-2.5 rounded-xl border transition flex items-center justify-center shrink-0 ${
                 isListening
                   ? 'bg-red-500/30 text-red-300 border-red-500/50 animate-pulse'
-                  : 'bg-black/60 text-gray-300 border-white/15 hover:border-neon-cyan hover:text-neon-cyan'
+                  : 'bg-black/60 text-gray-300 border-white/15 hover:border-neon-cyan hover:text-neon-cyan disabled:cursor-not-allowed disabled:opacity-40'
               }`}
-              title={isListening ? 'Zuhören stoppen...' : 'Mikrofon einschalten (Spracheingabe)'}
+              title={!backendAvailable ? 'Nur in der verbundenen Web-App verfügbar' : isListening ? 'Zuhören stoppen...' : 'Mikrofon einschalten (Spracheingabe)'}
             >
               {isListening ? <MicOff className="w-4 h-4 text-red-400 animate-spin" /> : <Mic className="w-4 h-4" />}
             </button>
@@ -596,13 +656,14 @@ export default function AuraStudioCoach({
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Spreche oder schreibe mit AURA: Frage nach Live-Tipps, Routing, 0ms Tunings oder PINs..."
-              className="flex-1 bg-black/60 border border-white/15 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-neon-cyan font-sans"
+              disabled={!backendAvailable}
+              placeholder={backendAvailable ? 'Spreche oder schreibe mit AURA: Frage nach Live-Tipps, Routing, Tunings oder PINs...' : 'AURA ist in der portablen Vorschau nicht verbunden.'}
+              className="flex-1 bg-black/60 border border-white/15 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-neon-cyan font-sans disabled:cursor-not-allowed disabled:opacity-60"
             />
             
             <button
               onClick={() => handleSendMessage()}
-              disabled={isAnalyzing}
+              disabled={!demoMode || !backendAvailable || isAnalyzing}
               className="px-4 py-2.5 bg-neon-cyan text-black font-mono font-bold text-xs rounded-xl hover:bg-white transition flex items-center gap-1.5 shrink-0 disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />

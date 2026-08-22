@@ -13,7 +13,9 @@ export interface MidiDevice {
   type: DeviceType;
   status: DeviceStatus;
   isPhysicalHardware?: boolean;
-  connectionType?: 'PHYSICAL_USB' | 'VIRTUAL_SIMULATION';
+  connectionType?: 'OS_MIDI_ENDPOINT' | 'PHYSICAL_USB' | 'VIRTUAL_SIMULATION';
+  operationalMode?: 'STAGE' | 'DEMO';
+  telemetryVerified?: boolean;
   portNameIn: string;
   portNameOut: string;
   bufferUsage: number; // 0 - 100%

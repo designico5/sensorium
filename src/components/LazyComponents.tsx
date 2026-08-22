@@ -51,7 +51,8 @@ export function withLazyLoading<T extends ComponentType<any>>(
     </Suspense>
   );
 
-  WithSuspense.displayName = `Lazy(${LazyComponent.displayName || 'Component'})`;
+  const componentName = (LazyComponent as LazyExoticComponent<T> & { displayName?: string }).displayName || 'Component';
+  WithSuspense.displayName = `Lazy(${componentName})`;
   
   return WithSuspense as unknown as LazyExoticComponent<T>;
 }

@@ -74,6 +74,7 @@ import Spatial5DStadiumEngine from './components/Spatial5DStadiumEngine';
 import TripleAuditHardeningSuite from './components/TripleAuditHardeningSuite';
 import CustomDashboardStudio from './components/CustomDashboardStudio';
 import VolumetricFrequencyCloudBg from './components/VolumetricFrequencyCloudBg';
+import StageReadinessView from './components/StageReadinessView';
 import * as d3 from 'd3';
 import {
   Activity,
@@ -124,6 +125,8 @@ import {
   Trash2,
   LayoutGrid
 } from 'lucide-react';
+import { isActiveTab } from './navigation';
+import type { ActiveTab } from './navigation';
 
 export interface FirmwareInfo {
   deviceId: string;
@@ -700,11 +703,11 @@ function LatencySparkline({ history }: LatencySparklineProps) {
 }
 
 const INTRO_LOGS: SystemLog[] = [
-  { id: '1', timestamp: '16:58:33', source: 'SYSTEM', level: 'info', message: 'Sensorium Engine Booting on OS kernel...' },
-  { id: '2', timestamp: '16:58:34', source: 'SYSTEM', level: 'success', message: 'Successfully loaded OS Core MIDI library (windows-rs).' },
-  { id: '3', timestamp: '16:58:34', source: 'OSC', level: 'info', message: 'OSC UDP Bridge listening on 127.0.0.1:5125.' },
-  { id: '4', timestamp: '16:58:35', source: 'ABLETON', level: 'success', message: 'Handshake response received from Ableton Link.' },
-  { id: '5', timestamp: '16:58:35', source: 'MIDI', level: 'info', message: 'Enumerated 4 active MIDI In/Out Ports.' },
+  { id: '1', timestamp: 'BOOT', source: 'SYSTEM', level: 'info', message: 'Sensorium Stage-Oberfläche gestartet.' },
+  { id: '2', timestamp: 'BOOT', source: 'SYSTEM', level: 'warn', message: 'Stage-Modus ist fail-closed: keine physischen Ausgänge bewaffnet.' },
+  { id: '3', timestamp: 'BOOT', source: 'OSC', level: 'warn', message: 'OSC/Bridge deaktiviert, bis Authentifizierung und Gegenstelle verifiziert sind.' },
+  { id: '4', timestamp: 'BOOT', source: 'ABLETON', level: 'warn', message: 'Kein Ableton-Handshake bestätigt.' },
+  { id: '5', timestamp: 'BOOT', source: 'MIDI', level: 'info', message: 'Physische MIDI-Porterkennung ausstehend.' },
 ];
 
 const TRANSLATIONS = {
@@ -835,15 +838,15 @@ export default function App() {
     }
   });
 
-  const [activeTab, setActiveTab] = useState<'mindmap' | 'diagnostics' | 'midimapping' | 'triggerusb' | 'activitylogger' | 'multirecord' | 'trxblueprint' | 'code' | 'export' | 'presskit'>(() => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     try {
       const saved = localStorage.getItem('sensorium_active_tab');
-      if (saved) return saved as any;
+      if (isActiveTab(saved)) return saved;
     } catch {}
     return 'mindmap';
   });
 
-  const [masterWorkspace, setMasterWorkspace] = useState<'studio' | 'hardware' | 'daw' | 'media'>('studio');
+  const [masterWorkspace, setMasterWorkspace] = useState<'studio' | 'hardware' | 'daw' | 'media' | 'custom'>('studio');
   const [showAuraCoach, setShowAuraCoach] = useState<boolean>(false);
 
   useEffect(() => {
@@ -876,9 +879,11 @@ export default function App() {
     }
   }, [activeTab]);
   const [bpm, setBpm] = useState(128);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [devices, setDevices] = useState<MidiDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<MidiDevice | null>(null);
+  const [runtimeMode, setRuntimeMode] = useState<'STAGE' | 'DEMO'>('STAGE');
+  const demoMode = runtimeMode === 'DEMO';
   const [alerts, setAlerts] = useState<DiagnosticCardData[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>(INTRO_LOGS);
   const [activeSignals, setActiveSignals] = useState<string[]>([]);
@@ -887,6 +892,9 @@ export default function App() {
 
   // Web MIDI & Overlay States
   const midiAccessRef = useRef<MIDIAccess | null>(null);
+  const demoModeRef = useRef(false);
+  const stageSessionRef = useRef<{ bpm: number; logs: SystemLog[] }>({ bpm: 128, logs: INTRO_LOGS });
+  const runtimeEpochRef = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const clockPulseCountRef = useRef<number>(0);
   const lastClockTimeRef = useRef<number>(0);
@@ -894,7 +902,16 @@ export default function App() {
   const lastLogTimeRef = useRef<number>(0);
   const lastDeviceUpdateMapRef = useRef<Map<string, { msg: string; latency: number; time: number }>>(new Map());
   const lastMidiStateFlushRef = useRef<number>(0);
-  const activeSignalTimerRef = useRef<NodeJS.Timeout | null>(null);
+const activeSignalTimerRef = useRef<NodeJS.Timeout | null>(null);
+const calibrationRunRef = useRef(0);
+const midiScanSequenceRef = useRef(0);
+const midiScanInFlightRef = useRef(false);
+const midiScanQueuedEpochRef = useRef<number | null>(null);
+const midiScanQueuedResolversRef = useRef<Array<() => void>>([]);
+const calibrationDialogRef = useRef<HTMLDivElement | null>(null);
+  const calibrationReturnFocusRef = useRef<HTMLElement | null>(null);
+  const wizardIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wizardTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   const playMidiAudioNote = (midiNote: number, velocity: number, isDrum: boolean = false) => {
     try {
@@ -996,6 +1013,7 @@ export default function App() {
     count: 0,
     info: 'OS Hardware Engine bereit'
   });
+  const [isScanningMidi, setIsScanningMidi] = useState(false);
   const [showMindmapOverlay, setShowMindmapOverlay] = useState<boolean>(false);
   const [showVintageLibraryModal, setShowVintageLibraryModal] = useState<boolean>(false);
   const [hardwareFilter, setHardwareFilter] = useState<'all' | 'physical' | 'virtual'>('all');
@@ -1005,18 +1023,28 @@ export default function App() {
   const [calibrationProgress, setCalibrationProgress] = useState<number>(0);
   const [calibrationStep, setCalibrationStep] = useState<string>('');
   const [calibrationResults, setCalibrationResults] = useState<
-    Array<{ name: string; category: string; status: 'PASS' | 'RUNNING' | 'FAIL' | 'PENDING'; detail: string }>
+    Array<{ name: string; category: string; status: 'SOFTWARE' | 'HARDWARE_OPEN' | 'RUNNING' | 'FAIL' | 'PENDING'; detail: string }>
   >([]);
   const [showCalibrationModal, setShowCalibrationModal] = useState<boolean>(false);
 
   const runFullSystemCalibration = async () => {
+    if (demoModeRef.current) {
+      addLog('SYSTEM', 'warn', '[DEMO MODUS] Der read-only Hardware-Readiness-Check ist im isolierten Demo-Modus deaktiviert.');
+      return;
+    }
+    const calibrationEpoch = runtimeEpochRef.current;
+    const calibrationRun = ++calibrationRunRef.current;
+    const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (activeElement && !calibrationDialogRef.current?.contains(activeElement)) {
+      calibrationReturnFocusRef.current = activeElement;
+    }
     setIsCalibrating(true);
     setShowCalibrationModal(true);
     setCalibrationProgress(5);
     setCalibrationStep('Starte Vollspektrum-Systemprüfung & Loopback Scan...');
 
     const initialSteps = [
-      { name: '1. Web MIDI & USB Bus Audit', category: 'Hardware', status: 'PENDING' as const, detail: 'Warte auf OS Abfrage...' },
+      { name: '1. Web MIDI & OS Endpoint Audit', category: 'Schnittstelle', status: 'PENDING' as const, detail: 'Warte auf OS-Abfrage...' },
       { name: '2. Web Audio Frequency Synth Sweep', category: 'Audio Engine', status: 'PENDING' as const, detail: 'Warte auf AudioContext Sweep...' },
       { name: '3. OSC Port 5125 Handshake', category: 'Netzwerk', status: 'PENDING' as const, detail: 'Warte auf Loopback Ack...' },
       { name: '4. Physical vs Virtual Route Test', category: 'Routing', status: 'PENDING' as const, detail: 'Warte auf Signal-Triggering...' },
@@ -1027,117 +1055,110 @@ export default function App() {
     setCalibrationResults(initialSteps);
     addLog('SYSTEM', 'info', '[KALIBRIERUNG] Vollspektrum Systemprüfung gestartet.');
 
-    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const isCurrentCalibration = () =>
+      !demoModeRef.current &&
+      calibrationEpoch === runtimeEpochRef.current &&
+      calibrationRun === calibrationRunRef.current;
+    const delay = (ms: number) => new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(isCurrentCalibration()), ms);
+    });
 
     // Step 1: Web MIDI & USB
     setCalibrationProgress(18);
-    setCalibrationStep('Prüfe physische USB-MIDI Ports & Web MIDI Access...');
+    setCalibrationStep('Prüfe OS-gemeldete MIDI-Endpunkte und Web-MIDI-Zugriff...');
     setCalibrationResults((prev) => prev.map((s, i) => (i === 0 ? { ...s, status: 'RUNNING', detail: 'Scanne Betriebssystem MIDI Treiberschnittstellen...' } : s)));
-    await delay(600);
+    if (!(await delay(600))) return;
 
-    let physicalCount = 0;
-    try {
-      if (navigator.requestMIDIAccess) {
-        const access = await navigator.requestMIDIAccess();
-        physicalCount = access.inputs.size + access.outputs.size;
-      }
-    } catch (e) {}
-
-    const physDevices = devices.filter((d) => d.isPhysicalHardware).length;
+    const access = midiAccessRef.current;
+    const midiAccessGranted = Boolean(access);
+    const endpointCount = access ? access.inputs.size + access.outputs.size : 0;
+    if (!isCurrentCalibration()) return;
     setCalibrationResults((prev) =>
       prev.map((s, i) =>
         i === 0
           ? {
               ...s,
-              status: 'PASS',
+              status: midiAccessGranted ? 'SOFTWARE' : 'FAIL',
               detail:
-                physDevices > 0 || physicalCount > 0
-                  ? `✅ ${physDevices || physicalCount} physische USB-MIDI Ports aktiv erkannt.`
-                  : `✅ Web MIDI Treiber bereit (0 USB Hardware Ports angeschlossen, 4 Demo-Geräte aktiv).`,
+                midiAccessGranted
+                  ? `Web-MIDI-Zugriff verfügbar; ${endpointCount} OS-Endpunkt(e) gemeldet. Physischer Gerätetyp, Verkabelung sowie elektrische und End-to-End-Validierung bleiben offen.`
+                  : 'Web-MIDI-Zugriff nicht verfügbar oder nicht freigegeben. Keine Hardwareaussage möglich.',
             }
           : s
       )
     );
-    addLog('MIDI', 'success', `[KALIBRIERUNG TEST 1] Web MIDI Bus Audit OK.`);
+    addLog('MIDI', midiAccessGranted ? 'info' : 'warn', `[DIAGNOSE TEST 1] Web-MIDI API ${midiAccessGranted ? 'erreichbar; Hardwaretest offen' : 'nicht erreichbar'}.`);
 
     // Step 2: Audio Engine
     setCalibrationProgress(38);
     setCalibrationStep('Führe Frequenz-Sweep in Web Audio Engine durch...');
     setCalibrationResults((prev) => prev.map((s, i) => (i === 1 ? { ...s, status: 'RUNNING', detail: 'Erzeuge Testton C4 (261Hz) & A4 (440Hz)...' } : s)));
-    await delay(500);
-
-    playMidiAudioNote(60, 100);
-    await delay(300);
-    playMidiAudioNote(69, 110);
-    await delay(400);
+    if (!(await delay(500))) return;
 
     setCalibrationResults((prev) =>
       prev.map((s, i) =>
         i === 1
           ? {
               ...s,
-              status: 'PASS',
-              detail: '✅ AudioContext aktiv, Latency-Compensation OK, Sample Rate 48.0kHz.',
+              status: 'HARDWARE_OPEN',
+              detail: 'Kein Testton ausgegeben: Der Stage-Readiness-Check bleibt read-only. Audiointerface, Treiber, Sample-Rate und Round-Trip-Latenz müssen im HIL-Test geprüft werden.',
             }
           : s
       )
     );
-    addLog('SYSTEM', 'success', `[KALIBRIERUNG TEST 2] Audio Synth Sweep verifiziert.`);
+    addLog('SYSTEM', 'warn', '[DIAGNOSE TEST 2] Stage-Prüfung blieb stumm und read-only; physischer Audiopfad offen.');
 
     // Step 3: OSC Port 5125
     setCalibrationProgress(58);
     setCalibrationStep('Sende UDP / OSC Handshake Paket an Port 5125...');
     setCalibrationResults((prev) => prev.map((s, i) => (i === 2 ? { ...s, status: 'RUNNING', detail: 'Prüfe /sensorium/ping Loopback...' } : s)));
-    await delay(600);
+    if (!(await delay(600))) return;
 
     setCalibrationResults((prev) =>
       prev.map((s, i) =>
         i === 2
           ? {
               ...s,
-              status: 'PASS',
-              detail: '✅ Port 5125 gebunden, Loopback Antwort in <0.4ms erhalten.',
+              status: 'HARDWARE_OPEN',
+              detail: 'Kein echter OSC-Socket-Handshake in dieser Vorschau ausgeführt. Authentifizierung, Paketverlust und Gegenstelle müssen getestet werden.',
             }
           : s
       )
     );
-    addLog('SYSTEM', 'success', `[KALIBRIERUNG TEST 3] OSC Port 5125 Loopback verifiziert.`);
+    addLog('SYSTEM', 'warn', `[DIAGNOSE TEST 3] OSC/WebSocket-Hardwaretest offen; keine Antwort simuliert.`);
 
     // Step 4: Routing
     setCalibrationProgress(78);
-    setCalibrationStep('Prüfe Signalpfade (NoteOn/NoteOff Routing)...');
-    setCalibrationResults((prev) => prev.map((s, i) => (i === 3 ? { ...s, status: 'RUNNING', detail: 'Sende Test-Triggersignal an alle Kanäle...' } : s)));
-    await delay(500);
-
-    sendRealMidiOutputMessage(64, 115, 1);
-    await delay(300);
+    setCalibrationStep('Bewerte sicheren MIDI-Routing-Test...');
+    setCalibrationResults((prev) => prev.map((s, i) => (i === 3 ? { ...s, status: 'RUNNING', detail: 'Physische Ausgänge bleiben im Diagnosemodus schreibgeschützt.' } : s)));
+    if (!(await delay(500))) return;
 
     setCalibrationResults((prev) =>
       prev.map((s, i) =>
         i === 3
           ? {
               ...s,
-              status: 'PASS',
-              detail: '✅ MIDI Kanal 1-16 Signal-Router ohne Dropouts verifiziert.',
+              status: 'HARDWARE_OPEN',
+              detail: 'Kein Note-On gesendet: physische Diagnose ist standardmäßig read-only. Loopback-Port, Zielgerät, Bytefolge und Freigabe fehlen.',
             }
           : s
       )
     );
-    addLog('MIDI', 'success', `[KALIBRIERUNG TEST 4] Trigger-Routing Test erfolgreich.`);
+    addLog('MIDI', 'warn', `[DIAGNOSE TEST 4] Physischer MIDI-Loopback offen; keine Ausgänge beschrieben.`);
 
     // Step 5: Clock
     setCalibrationProgress(92);
     setCalibrationStep('Prüfe Ableton Live / MIDI Clock Sync Transport...');
     setCalibrationResults((prev) => prev.map((s, i) => (i === 4 ? { ...s, status: 'RUNNING', detail: 'Erfasse Clock Pulse Timing...' } : s)));
-    await delay(500);
+    if (!(await delay(500))) return;
 
     setCalibrationResults((prev) =>
       prev.map((s, i) =>
         i === 4
           ? {
               ...s,
-              status: 'PASS',
-              detail: `✅ BPM Counter (${bpm} BPM) stabil, 24 PPQN Puls-Sync aktiv.`,
+              status: 'HARDWARE_OPEN',
+              detail: `UI-Tempo steht auf ${bpm} BPM. Kein externer 24-PPQN-Clock-Eingang, DAW-Readback oder Zeitstempel erfasst.`,
             }
           : s
       )
@@ -1145,51 +1166,67 @@ export default function App() {
 
     // Step 6: Buffer & Stress
     setCalibrationProgress(100);
-    setCalibrationStep('Kalibrierung abgeschlossen! System befindet sich im perfekten Kreislauf.');
+    setCalibrationStep('Softwarediagnose abgeschlossen — physische Prüfungen bleiben offen.');
     setCalibrationResults((prev) =>
       prev.map((s, i) =>
         i === 5
           ? {
               ...s,
-              status: 'PASS',
-              detail: '✅ Jitter-Buffer optimal (12ms), 0% Packet-Loss, System im perfekten Kreislauf verifiziert!',
+              status: 'HARDWARE_OPEN',
+              detail: 'Keine gemessene Jitter-, Paketverlust-, XRun- oder 24h-Soak-Evidenz vorhanden. Industrieller Lasttest erforderlich.',
             }
           : s
       )
     );
-    addLog('SYSTEM', 'success', `[KALIBRIERUNG ERFOLGREICH] Alle 6 Subsysteme im vollkommenen Kreislauf!`);
+    addLog('SYSTEM', 'warn', `[DIAGNOSE BEENDET] Softwareoberflächen geprüft; physische Freigabe ausdrücklich nicht erteilt.`);
 
+    if (isCurrentCalibration()) setIsCalibrating(false);
+  };
+
+  const closeCalibrationDialog = () => {
+    calibrationRunRef.current += 1;
     setIsCalibrating(false);
+    setShowCalibrationModal(false);
+    const returnTarget = calibrationReturnFocusRef.current;
+    calibrationReturnFocusRef.current = null;
+    window.requestAnimationFrame(() => {
+      if (returnTarget?.isConnected) returnTarget.focus();
+    });
   };
 
-  const sendRealMidiOutputMessage = (note = 60, velocity = 100, channel = 1) => {
-    // 1. Play Web Audio synth sound
-    playMidiAudioNote(note, velocity);
+  const handleCalibrationDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeCalibrationDialog();
+      return;
+    }
+    if (event.key !== 'Tab') return;
 
-    // 2. Send to real physical Web MIDI output ports if connected
-    let sentToPhysicalHardware = false;
-    if (midiAccessRef.current) {
-      midiAccessRef.current.outputs.forEach((output: MIDIOutput) => {
-        try {
-          output.send([0x90 + (channel - 1), note, velocity]);
-          setTimeout(() => {
-            try {
-              output.send([0x80 + (channel - 1), note, 0]);
-            } catch (e) {}
-          }, 350);
-          sentToPhysicalHardware = true;
-          addLog('MIDI', 'success', `[ECHTES PHYSISCHES MIDI OUT] Note ${note} Vel ${velocity} Ch ${channel} an USB-Port "${output.name}" gesendet.`);
-        } catch (err: any) {
-          addLog('MIDI', 'warn', `[MIDI OUT FEHLER] Konnte nicht an ${output.name} senden: ${err?.message}`);
-        }
-      });
+    const dialog = calibrationDialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => !element.hasAttribute('hidden'));
+
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
     }
 
-    if (!sentToPhysicalHardware) {
-      addLog('MIDI', 'info', `[VIRTUELLES MIDI SIGNAL] Note ${note} in interner Audio Engine abgespielt (Kein physischer USB MIDI Out Port angeschlossen).`);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   };
-  
+
   // Custom interactive states
   const [acceleratingDeviceId, setAcceleratingDeviceId] = useState<string | null>(null);
   const [mindmapViewMode, setMindmapViewMode] = useState<'spring' | 'grid' | 'radial' | 'constellation' | 'circuit'>('spring');
@@ -1330,15 +1367,58 @@ export default function App() {
   });
 
   // Web MIDI Hardware Scan & Demo Device Management
+  const closeMidiAccess = (access: MIDIAccess | null = midiAccessRef.current) => {
+    if (!access) return;
+    access.onstatechange = null;
+    access.inputs.forEach((input) => {
+      input.onmidimessage = null;
+      void input.close();
+    });
+    access.outputs.forEach((output) => void output.close());
+    if (midiAccessRef.current === access) midiAccessRef.current = null;
+  };
+
+  const clearWizardJobs = () => {
+    if (wizardIntervalRef.current) {
+      clearInterval(wizardIntervalRef.current);
+      wizardIntervalRef.current = null;
+    }
+    wizardTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+    wizardTimeoutsRef.current.clear();
+  };
+
   const scanWebMidiHardware = async () => {
+    if (demoModeRef.current) {
+      setWebMidiStatus({ active: false, count: 0, info: 'Demo isoliert — Hardware-Scan deaktiviert' });
+      return;
+    }
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
       setWebMidiStatus({ active: false, count: 0, info: 'Web MIDI API wird nicht unterstützt' });
       addLog('MIDI', 'warn', '[WEB MIDI] Browser unterstützt keine direkte Hardware MIDI Web API. Nutzen Sie Chrome, Edge oder Electron.');
       return;
     }
+    if (midiScanInFlightRef.current) {
+      midiScanQueuedEpochRef.current = runtimeEpochRef.current;
+      return new Promise<void>((resolve) => {
+        midiScanQueuedResolversRef.current.push(resolve);
+      });
+    }
 
+    midiScanInFlightRef.current = true;
+    const scanSequence = ++midiScanSequenceRef.current;
+    const scanEpoch = runtimeEpochRef.current;
+    setIsScanningMidi(true);
     try {
-      const access = await navigator.requestMIDIAccess({ sysex: true }).catch(() => navigator.requestMIDIAccess({ sysex: false }));
+      const access = await navigator.requestMIDIAccess({ sysex: false });
+      if (
+        demoModeRef.current ||
+        scanEpoch !== runtimeEpochRef.current ||
+        scanSequence !== midiScanSequenceRef.current
+      ) {
+        closeMidiAccess(access);
+        return;
+      }
+      if (midiAccessRef.current && midiAccessRef.current !== access) closeMidiAccess();
       midiAccessRef.current = access;
 
       const detectedDevices: MidiDevice[] = [];
@@ -1357,17 +1437,19 @@ export default function App() {
           id: devId,
           name: input.name || `MIDI Input ${countInputs}`,
           type: devType,
-          status: 'Healthy',
-          isPhysicalHardware: true,
-          connectionType: 'PHYSICAL_USB',
+          status: 'Warn',
+          isPhysicalHardware: false,
+          connectionType: 'OS_MIDI_ENDPOINT',
+          operationalMode: 'STAGE',
+          telemetryVerified: false,
           portNameIn: input.name || `Input ${countInputs}`,
           portNameOut: 'N/A',
-          bufferUsage: Math.floor(Math.random() * 10) + 2,
-          clockDrift: parseFloat((Math.random() * 0.4 + 0.1).toFixed(1)),
-          latency: 1.4,
+          bufferUsage: 0,
+          clockDrift: 0,
+          latency: 0,
           dropCount: 0,
           lastMessageTime: Date.now(),
-          lastMessageValue: 'Bereit (Listening...)',
+          lastMessageValue: 'Port erkannt; Live-Signaltest ausstehend',
           triggerDirection: 'Rising Edge',
           midiChannel: 1,
           ccFilterActive: true,
@@ -1385,6 +1467,7 @@ export default function App() {
         };
 
         input.onmidimessage = (event: MIDIMessageEvent) => {
+          if (demoModeRef.current || scanEpoch !== runtimeEpochRef.current) return;
           if (!event.data || event.data.length === 0) return;
           const status = event.data[0];
           const data1 = event.data[1] ?? 0;
@@ -1405,8 +1488,6 @@ export default function App() {
           if (cmd === 9 && data2 > 0) {
             isNoteOn = true;
             msgStr = `NoteOn Ch:${channel} Note:${data1} Vel:${data2}`;
-            const isDrumDevice = nameLower.includes('drum') || nameLower.includes('pad');
-            playMidiAudioNote(data1, data2, isDrumDevice);
           } else if (cmd === 8 || (cmd === 9 && data2 === 0)) {
             msgStr = `NoteOff Ch:${channel} Note:${data1}`;
           } else if (cmd === 11) {
@@ -1437,6 +1518,8 @@ export default function App() {
                   const history = [...(d.latencyHistory || []), u.latency].slice(-20);
                   return {
                     ...d,
+                    status: 'Warn' as const,
+                    telemetryVerified: true,
                     lastMessageTime: u.time,
                     lastMessageValue: u.msg,
                     latency: u.latency,
@@ -1478,17 +1561,19 @@ export default function App() {
             id: `real-midi-out-${output.id || output.name}`,
             name: output.name || `MIDI Output ${countOutputs}`,
             type: 'Virtual Bridge',
-            status: 'Healthy',
-            isPhysicalHardware: true,
-            connectionType: 'PHYSICAL_USB',
+            status: 'Warn',
+            isPhysicalHardware: false,
+            connectionType: 'OS_MIDI_ENDPOINT',
+            operationalMode: 'STAGE',
+            telemetryVerified: false,
             portNameIn: 'N/A',
             portNameOut: output.name || `Output ${countOutputs}`,
-            bufferUsage: 3,
-            clockDrift: 0.2,
-            latency: 1.0,
+            bufferUsage: 0,
+            clockDrift: 0,
+            latency: 0,
             dropCount: 0,
             lastMessageTime: Date.now(),
-            lastMessageValue: 'Output Port Ready',
+            lastMessageValue: 'Ausgang erkannt; Schreibtest nicht freigegeben',
             triggerDirection: 'Rising Edge',
             midiChannel: 1,
             ccFilterActive: false,
@@ -1508,6 +1593,7 @@ export default function App() {
       });
 
       access.onstatechange = (e: any) => {
+        if (demoModeRef.current || scanEpoch !== runtimeEpochRef.current) return;
         const port = e.port;
         if (port) {
           addLog('MIDI', port.state === 'connected' ? 'success' : 'warn', `[HOTPLUG OS] USB-Gerät "${port.name || 'MIDI Gerät'}" (${port.type}) ist nun ${port.state ? port.state.toUpperCase() : 'GEÄNDERT'}.`);
@@ -1518,9 +1604,6 @@ export default function App() {
       const detectedDeviceIds = new Set(detectedDevices.map((d) => d.id));
 
       setDevices((prev) => {
-        // Keep non-real-midi devices (like demo devices)
-        const nonRealDevices = prev.filter((d) => !d.id.startsWith('real-midi-'));
-        
         // Map of existing real MIDI devices to preserve latency history & state
         const existingRealMap = new Map<string, MidiDevice>(
           prev.filter((d) => d.id.startsWith('real-midi-')).map((d) => [d.id, d])
@@ -1532,13 +1615,13 @@ export default function App() {
             return {
               ...existing,
               ...newDev,
-              status: 'Healthy' as const,
+              status: 'Warn' as const,
             };
           }
           return newDev;
         });
 
-        return [...nonRealDevices, ...updatedRealDevices];
+        return updatedRealDevices;
       });
 
       setSelectedDevice((prev) => {
@@ -1550,27 +1633,146 @@ export default function App() {
       });
 
       if (detectedDevices.length > 0) {
-        setWebMidiStatus({ active: true, count: countInputs + countOutputs, info: `${countInputs} In / ${countOutputs} Out Ports aktiv` });
+        setWebMidiStatus({ active: true, count: countInputs + countOutputs, info: `${countInputs} In / ${countOutputs} Out erkannt; Abnahme offen` });
       } else {
-        setWebMidiStatus({ active: true, count: 0, info: 'Keine physikalischen MIDI-Geräte am PC gefunden' });
+        setWebMidiStatus({ active: true, count: 0, info: 'Keine OS-MIDI-Endpunkte gefunden' });
       }
     } catch (err: any) {
+      if (
+        demoModeRef.current ||
+        scanEpoch !== runtimeEpochRef.current ||
+        scanSequence !== midiScanSequenceRef.current
+      ) return;
       setWebMidiStatus({ active: false, count: 0, info: 'Web MIDI Zugriff verweigert/Fehler' });
       addLog('MIDI', 'warn', `[WEB MIDI] Fehler bei Initialisierung: ${err?.message || err}`);
+    } finally {
+      midiScanInFlightRef.current = false;
+      const queuedEpoch = midiScanQueuedEpochRef.current;
+      const queuedResolvers = midiScanQueuedResolversRef.current.splice(0);
+      const shouldRescan =
+        queuedEpoch !== null &&
+        !demoModeRef.current &&
+        queuedEpoch === runtimeEpochRef.current;
+      midiScanQueuedEpochRef.current = null;
+      if (
+        !demoModeRef.current &&
+        scanEpoch === runtimeEpochRef.current &&
+        scanSequence === midiScanSequenceRef.current
+      ) setIsScanningMidi(false);
+      if (shouldRescan) {
+        void scanWebMidiHardware().finally(() => queuedResolvers.forEach((resolve) => resolve()));
+      } else {
+        queuedResolvers.forEach((resolve) => resolve());
+      }
     }
   };
 
   useEffect(() => {
     scanWebMidiHardware();
     return () => {
+      runtimeEpochRef.current += 1;
+      calibrationRunRef.current += 1;
+      clearWizardJobs();
+      closeMidiAccess();
       if (activeSignalTimerRef.current) clearTimeout(activeSignalTimerRef.current);
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') void audioCtxRef.current.close();
     };
   }, []);
 
   const loadDemoDevices = () => {
-    setDevices(INITIAL_DEVICES);
-    setSelectedDevice(INITIAL_DEVICES[0]);
-    addLog('SYSTEM', 'success', '[DEMO MODUS] Virtuelle Demo-Geräte (DrumMachine, Synth, Launchpad, Virtual Bridge) geladen.');
+    runtimeEpochRef.current += 1;
+    calibrationRunRef.current += 1;
+    clearWizardJobs();
+    setIsScanningMidi(false);
+    setIsCalibrating(false);
+    setShowCalibrationModal(false);
+    setIsWizardRunning(false);
+    setWizardSuccess(false);
+    setWizardProgress(0);
+    setWizardStep(1);
+    setWizardLog([]);
+    setCopiedLink(false);
+    stageSessionRef.current = { bpm, logs };
+    closeMidiAccess();
+    demoModeRef.current = true;
+    setRuntimeMode('DEMO');
+    setSetupCompleted(true);
+    setMasterWorkspace('studio');
+    setActiveTab('mindmap');
+    setHardwareFilter('virtual');
+    const isolatedDemoDevices = INITIAL_DEVICES.map((device) => ({
+      ...device,
+      isPhysicalHardware: false,
+      connectionType: 'VIRTUAL_SIMULATION' as const,
+      operationalMode: 'DEMO' as const,
+      telemetryVerified: false,
+    }));
+    setDevices(isolatedDemoDevices);
+    setSelectedDevice(isolatedDemoDevices[0]);
+    setAlerts([]);
+    addLog('SYSTEM', 'info', '[DEMO MODUS] Virtuelle Geräte geladen. MIDI-, Geräte- und Firmware-I/O bleiben getrennt; Audio nur nach expliziter Bedienung.');
+  };
+
+  const exitDemoMode = async () => {
+    runtimeEpochRef.current += 1;
+    calibrationRunRef.current += 1;
+    clearWizardJobs();
+    demoModeRef.current = false;
+    setRuntimeMode('STAGE');
+    setHardwareFilter('physical');
+    setDevices([]);
+    setSelectedDevice(null);
+    setAlerts([]);
+    setActiveSignals([]);
+    setIsPlaying(false);
+    setBpm(stageSessionRef.current.bpm);
+    setCurrentBeat(1);
+    setAcceleratingDeviceId(null);
+    setInspectorTab('midi');
+    setShowMindmapOverlay(false);
+    setShowAuraCoach(false);
+    setIsClipAutomatic(false);
+    setHealingDeviceId(null);
+    setHealingProgress(0);
+    setHealingStepText('');
+    setIsCalibrating(false);
+    setShowCalibrationModal(false);
+    setIsWizardRunning(false);
+    setWizardSuccess(false);
+    setWizardProgress(0);
+    setWizardStep(1);
+    setWizardLog([]);
+    setCopiedLink(false);
+    setShowAndroidSimulator(false);
+    setIsSyncingAndroid(false);
+    setIsDoctorRunning(false);
+    setDoctorStatus('idle');
+    setIsBuilding(false);
+    setShowVintageLibraryModal(false);
+    setShowApkWarningModal(false);
+    setActiveTab('diagnostics');
+    clockPulseCountRef.current = 0;
+    lastClockTimeRef.current = 0;
+    clockHistoryRef.current = [];
+    lastDeviceUpdateMapRef.current.clear();
+    lastMidiStateFlushRef.current = 0;
+    if (activeSignalTimerRef.current) {
+      clearTimeout(activeSignalTimerRef.current);
+      activeSignalTimerRef.current = null;
+    }
+    closeMidiAccess();
+    if (audioCtxRef.current?.state === 'running') void audioCtxRef.current.suspend();
+    setLogs([
+      ...stageSessionRef.current.logs,
+      {
+        id: `stage-return-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('de-DE'),
+        source: 'SYSTEM',
+        level: 'info',
+        message: '[STAGE MODUS] Demo-Zustand vollständig verworfen. Physische Ports werden neu erkannt und bleiben fail-closed.',
+      },
+    ]);
+    await scanWebMidiHardware();
   };
 
   const clearAllDevices = () => {
@@ -1582,22 +1784,16 @@ export default function App() {
   const triggerRealMidiPanic = () => {
     setPanicTriggered('ALL_PORTS');
     setTimeout(() => setPanicTriggered(null), 2500);
-
-    if (midiAccessRef.current) {
-      let sentCount = 0;
-      midiAccessRef.current.outputs.forEach((output: MIDIOutput) => {
-        try {
-          for (let ch = 0; ch < 16; ch++) {
-            output.send([0xB0 + ch, 123, 0]); // All Notes Off
-            output.send([0xB0 + ch, 121, 0]); // Reset All Controllers
-          }
-          sentCount++;
-        } catch (e) {}
-      });
-      addLog('MIDI', 'error', `[EMERGENCY PANIC] Real-MIDI All-Notes-Off an ${sentCount} physische Ausgangs-Ports gesendet!`);
-    } else {
-      addLog('MIDI', 'error', '[EMERGENCY PANIC] Simulierte Panic an alle virtuellen MIDI-Kanäle gesendet.');
-    }
+    setIsPlaying(false);
+    setActiveSignals([]);
+    if (audioCtxRef.current?.state === 'running') void audioCtxRef.current.suspend();
+    addLog(
+      'MIDI',
+      'warn',
+      demoMode
+        ? '[DEMO SAFE STOP] Virtueller Transport und lokales Audio angehalten.'
+        : '[STAGE SAFE STOP] Lokaler Transport und Audio angehalten. Physische MIDI-Ausgänge bleiben unverändert, bis ein zielportbezogener, bewaffneter Panic-Pfad abgenommen ist.'
+    );
   };
 
   // Cockpit Customizer Preset States (Max 5 presets, automatic saving)
@@ -2024,6 +2220,8 @@ export default function App() {
   const [healingStepText, setHealingStepText] = useState('');
 
   const runDiagnosticsRepair = (deviceId: string) => {
+    if (!demoModeRef.current) return;
+    const repairEpoch = runtimeEpochRef.current;
     const targetDevice = devices.find((d) => d.id === deviceId);
     if (!targetDevice) return;
 
@@ -2043,6 +2241,10 @@ export default function App() {
 
     let currentStepIdx = 0;
     const stepInterval = setInterval(() => {
+      if (!demoModeRef.current || repairEpoch !== runtimeEpochRef.current) {
+        clearInterval(stepInterval);
+        return;
+      }
       if (currentStepIdx < repairSteps.length) {
         const step = repairSteps[currentStepIdx];
         setHealingProgress(step.progress);
@@ -2076,6 +2278,7 @@ export default function App() {
         addLog('SYSTEM', 'success', `[DIAGNOSTICS] Repair SUCCESSFUL for "${targetDevice.name}"! Status: HEALTHY, buffer allocation optimal.`);
         
         setTimeout(() => {
+          if (!demoModeRef.current || repairEpoch !== runtimeEpochRef.current) return;
           setHealingDeviceId(null);
           setHealingProgress(0);
           setHealingStepText('');
@@ -2086,7 +2289,7 @@ export default function App() {
 
   // Gemini AI Clip-Automatik Background Listener
   useEffect(() => {
-    if (!isClipAutomatic) return;
+    if (!demoMode || !isClipAutomatic) return;
 
     // Find any device that is not healthy and is not already being healed
     const unstableDevice = devices.find((d) => d.status !== 'Healthy');
@@ -2095,11 +2298,11 @@ export default function App() {
       addLog('SYSTEM', 'success', `[GEMINI AI] ⚡ Führe Echtzeit-Fehlerbehebung für "${unstableDevice.name}" im Hintergrund durch.`);
       runDiagnosticsRepair(unstableDevice.id);
     }
-  }, [devices, isClipAutomatic, healingDeviceId]);
+  }, [devices, isClipAutomatic, healingDeviceId, demoMode]);
 
   // Android Simulator audio visualizer bounce effect
   useEffect(() => {
-    if (!showAndroidSimulator) return;
+    if (!demoMode || !showAndroidSimulator) return;
 
     const interval = setInterval(() => {
       setSimLevelL((prev) => {
@@ -2115,79 +2318,42 @@ export default function App() {
     }, 80);
 
     return () => clearInterval(interval);
-  }, [showAndroidSimulator]);
+  }, [showAndroidSimulator, demoMode]);
 
   const startCompilation = (type: 'exe' | 'plugin' | 'apk' | 'dmg' | 'ipk' | 'vst3') => {
+    if (!demoModeRef.current) return;
+    const buildEpoch = runtimeEpochRef.current;
+    if (type !== 'plugin') {
+      setBuildType(type);
+      setBuildProgress(0);
+      setBuildLogs([
+        '[BLOCKED] Für dieses Ziel liegt in der Desktop-Vorschau kein lokal verifiziertes Build-Werkzeug vor.',
+        '[INFO] Verwenden Sie ausschließlich die echten Dateien im GitHub Release Center.',
+      ]);
+      addLog('SYSTEM', 'warn', `[BUILD PREVIEW] ${type.toUpperCase()} bleibt gesperrt, bis ein echtes geprüftes Artefakt vorliegt.`);
+      return;
+    }
     setIsBuilding(true);
     setBuildType(type);
     setBuildProgress(0);
     
-    let logsList: string[] = [];
-    if (type === 'exe') {
-      logsList = [
-        '⚡ [COMPILER] Spawning thread: OS x64 Portable Exe Bundler...',
-        '📦 [COMPILER] Checking environment dependencies (Electron, node-gyp, windows-rs)...',
-        '🔍 [COMPILER] Translating low-latency MIDI event ring-buffers to C++ windows-rs bindings...',
-        '🛠️ [COMPILER] Running frontend assembly: vite build --mode production...',
-        '📡 [COMPILER] Bundling compiled JS files into portable Electron executable container...',
-        '💾 [COMPILER] Linking ASIO clock hooks & PortAudio native driver DLLs...',
-        '🔒 [COMPILER] Creating high-performance executable file: Sensorium-Pro-2.0.0.exe...',
-        '🎉 [SUCCESS] STANDALONE EXECUTABLE READY! Download is now active.'
-      ];
-    } else if (type === 'dmg') {
-      logsList = [
-        '⚡ [MACOS-GEN] Spawning Apple Swift & Clang compiler toolchain...',
-        '🔒 [MACOS-GEN] Requesting Secure Enclave Cryptographic Hardware Binding Keys...',
-        '📦 [MACOS-GEN] Linking macOS CoreMIDI.framework and AudioToolbox.framework APIs...',
-        '🛠️ [MACOS-GEN] Bundling electron-mac distribution folder with custom Entitlements...',
-        '📡 [MACOS-GEN] Submitting bundle to Apple Notarization Service (altool --notarize-app)...',
-        '💾 [MACOS-GEN] Generating compressed HFS+/APFS hybrid read-only disk image...',
-        '🔒 [MACOS-GEN] Enforcing zero-duplication Hardware Keylock (cannot be copied or moved)...',
-        '🎉 [SUCCESS] macOS SECURE DISK IMAGE READY! Sensorium_macOS_Installer.dmg is ready.'
-      ];
-    } else if (type === 'ipk') {
-      logsList = [
-        '⚡ [IOS-GEN] Initializing iOS arm64 build target (Xcode / xcodebuild)...',
-        '📦 [IOS-GEN] Compiling Swift Low-Latency CoreMIDI Ring-Buffer delegates...',
-        '🔍 [IOS-GEN] Bundling AUv3 (Audio Unit v3) MIDI Instrument extension target...',
-        '🛠️ [IOS-GEN] Binding bundle ID to secure private developer profiles...',
-        '🔒 [IOS-GEN] Applying hardware device restriction layer (Secure Enclave bound)...',
-        '🎉 [SUCCESS] iOS IPK COMPLETED! AltStore / Apple Configurator package ready.'
-      ];
-    } else if (type === 'vst3') {
-      logsList = [
-        '⚡ [VST-GEN] Spawning C++ VST3 & AUv3 SDK compiler instance...',
-        '📦 [VST-GEN] Resolving JUCE core module classes and framework configurations...',
-        '🔍 [VST-GEN] Linking MIDI-Bridge ring buffers to native C++ clock structures...',
-        '🛠️ [VST-GEN] Compiling VST3 binary with -O3 fast-math optimizations...',
-        '📡 [VST-GEN] Packaging VST3, AU, and AAX format bundles into compressed zip package...',
-        '🎉 [SUCCESS] NATIVE VST3/AUv3 PLUGIN READY! Copy to your DAW plug-in directory.'
-      ];
-    } else if (type === 'plugin') {
-      logsList = [
-        '⚡ [PLUG-GEN] Starting Python MIDI remote script generator...',
-        '📦 [PLUG-GEN] Importing Ableton Live Framework Control Surface API...',
-        '📡 [PLUG-GEN] Constructing high-speed loopback UDP OSC ports for live diagnostics...',
-        '🛠️ [PLUG-GEN] Binding real-time song().tempo change events to background sockets...',
-        '🔍 [PLUG-GEN] Generating compiled Ableton_Remote_Script.py byte codes...',
-        '🎉 [SUCCESS] ABLETON SYNC PLUGIN READY! Download is now active.'
-      ];
-    } else {
-      logsList = [
-        '⚡ [APK-GEN] Spawning compiler thread: Android Gradle Kotlin-Native Wrapper...',
-        '📦 [APK-GEN] Building Android Manifest declarations (org.sensorium.companion.studio)...',
-        '🔍 [APK-GEN] Compiling high-frequency WiFi socket and low-latency USB ADB-bridge interfaces...',
-        '🛠️ [APK-GEN] Generating Kotlin Native Event Ring-Buffers and State serialization handlers...',
-        '📡 [APK-GEN] Building arrangement settings model, BPM clock tracker, and mobile scratchpad DSP...',
-        '🔒 [APK-GEN] Compiling release binaries and signing certificate keystore with debug keys...',
-        '🎉 [SUCCESS] ANDROID COMPANION APK READY! Your portable arrangement workstation is packaged.'
-      ];
-    }
+    const logsList = [
+      '⚡ [PLUG-GEN] Erzeuge ein lesbares Ableton-Remote-Script...',
+      '📦 [PLUG-GEN] Schreibe die lokale Control-Surface-Grundstruktur...',
+      '📡 [PLUG-GEN] Konfiguriere lokale UDP-Ports für die Entwicklungsbrücke...',
+      '🛠️ [PLUG-GEN] Binde Tempo- und Transport-Ereignisse...',
+      '🔍 [PLUG-GEN] Prüfe den Text-Export...',
+      '🎉 [SUCCESS] Ableton-Remote-Script als Python-Quelldatei vorbereitet.'
+    ];
 
     setBuildLogs([logsList[0]]);
     
     let step = 0;
     const interval = setInterval(() => {
+      if (!demoModeRef.current || buildEpoch !== runtimeEpochRef.current) {
+        clearInterval(interval);
+        return;
+      }
       step += 1;
       const progress = Math.min(100, Math.floor((step / logsList.length) * 100));
       setBuildProgress(progress);
@@ -2206,89 +2372,12 @@ export default function App() {
             timestamp,
             source: 'SYSTEM',
             level: 'success',
-            message: type === 'apk' 
-              ? `Android companion compilation completed: Sensorium-Companion-v2.apk successfully generated.`
-              : type === 'dmg'
-              ? `macOS compilation completed: Sensorium_macOS_Installer.dmg successfully generated (Secure Enclave Lock Active).`
-              : type === 'ipk'
-              ? `iOS compilation completed: Sensorium_iOS_Companion.ipk successfully generated.`
-              : type === 'vst3'
-              ? `VST3/AUv3 plugin bundle compiled successfully: Sensorium_Native_Plugin.zip ready.`
-              : `OS standalone compilation completed: ${type === 'exe' ? 'Sensorium-Pro-2.0.0.exe' : 'Ableton Live Link Plugin'} successfully generated.`
+            message: 'Ableton-Remote-Script als prüfbare Python-Quelldatei vorbereitet.'
           },
           ...prev
         ]);
       }
     }, 600);
-  };
-
-  const handleDownloadPackager = () => {
-    const blob = new Blob([`@echo off
-title Sensorium OS Standalone Exe Builder
-echo ====================================================================
-echo     SENSORIUM ENGINE - OS STANDALONE EXE BUNDLER (ELECTRON)
-echo ====================================================================
-echo.
-echo This script automates the bundling of your high-performance React
-echo MIDI/ASIO diagnostic mindmap into a native OS executable.
-echo.
-
-where node >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed on this system!
-    echo Please install Node.js (v18+) from https://nodejs.org/ and retry.
-    pause
-    exit /b 1
-)
-
-echo [1/4] Installing development dependencies (Electron & electron-builder)...
-call npm install --save-dev electron electron-builder electron-packer tsx
-
-echo.
-echo [2/4] Verifying Vite frontend build...
-call npm run build
-
-if %errorlevel% neq 0 (
-    echo [ERROR] Frontend build failed! Please check code compilation.
-    pause
-    exit /b 1
-)
-
-echo.
-echo [3/4] Configuring package.json settings for OS standalone executable...
-echo { "name": "sensorium-pro", "version": "2.0.0", "main": "electron-main.js", "scripts": { "package": "electron-builder --win" } } > electron-config.json
-
-echo.
-echo [4/4] Invoking Electron Builder compiler thread...
-echo Packing standalone binary... Please wait...
-call npx electron-builder --win portable --config.directories.output=dist/windows
-
-if %errorlevel% neq 0 (
-    echo [ERROR] Standalone executable compilation failed.
-    echo Please ensure no local file locks are active in dist/
-    pause
-    exit /b 1
-)
-
-echo.
-echo ====================================================================
-echo  [SUCCESS] Standalone COMPILATION COMPLETED!
-echo ====================================================================
-echo.
-echo Native Executable Location:
-echo   dist\\windows\\Sensorium-Pro-2.0.0-Portable.exe
-echo.
-echo You can now run the standalone tool or distribute it to your systems.
-echo.
-pause`], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'build-os-exe.bat';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const handleDownloadPlugin = () => {
@@ -2547,6 +2636,11 @@ Read-Host "Press ENTER to terminate..."
   };
 
   const handleStartFirmwareUpdate = (deviceId: string) => {
+    if (!demoModeRef.current) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Firmware-Simulation ist entfernt. Kein physischer Updater ist freigegeben.');
+      return;
+    }
+    const firmwareEpoch = runtimeEpochRef.current;
     const device = devices.find(d => d.id === deviceId);
     if (!device || !device.latestFirmwareVersion) return;
 
@@ -2571,6 +2665,7 @@ Read-Host "Press ENTER to terminate..."
 
     // We can simulate the stages using setTimeouts
     setTimeout(() => {
+      if (!demoModeRef.current || firmwareEpoch !== runtimeEpochRef.current) return;
       // 2. Set status to backing up
       setDevices(prev => prev.map(d => {
         if (d.id === deviceId) {
@@ -2595,6 +2690,7 @@ Read-Host "Press ENTER to terminate..."
       addLog('SYSTEM', 'success', `[BACKUP] ${device.name}: Sicherungspunkt für Version ${currentVer} erfolgreich angelegt.`);
 
       setTimeout(() => {
+        if (!demoModeRef.current || firmwareEpoch !== runtimeEpochRef.current) return;
         // 3. Set status to updating
         setDevices(prev => prev.map(d => {
           if (d.id === deviceId) {
@@ -2610,6 +2706,7 @@ Read-Host "Press ENTER to terminate..."
         addLog('SYSTEM', 'info', `[EEPROM] ${device.name}: Lösche EEPROM-Sektoren und flashe neue Firmware-Pakete...`);
 
         setTimeout(() => {
+          if (!demoModeRef.current || firmwareEpoch !== runtimeEpochRef.current) return;
           // 4. Set status to success, update firmwareVersion and clear firmwareUpdateAvailable
           setDevices(prev => prev.map(d => {
             if (d.id === deviceId) {
@@ -2629,6 +2726,7 @@ Read-Host "Press ENTER to terminate..."
 
           // Reset status to idle after a few seconds
           setTimeout(() => {
+            if (!demoModeRef.current || firmwareEpoch !== runtimeEpochRef.current) return;
             setDevices(prev => prev.map(d => {
               if (d.id === deviceId) {
                 return {
@@ -2649,6 +2747,11 @@ Read-Host "Press ENTER to terminate..."
   };
 
   const handleRestoreBackup = (deviceId: string, backupId: string) => {
+    if (!demoModeRef.current) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Virtuelle Wiederherstellung ist ausschließlich im Demo-Modus verfügbar.');
+      return;
+    }
+    const restoreEpoch = runtimeEpochRef.current;
     const device = devices.find(d => d.id === deviceId);
     if (!device || !device.backups) return;
 
@@ -2669,6 +2772,7 @@ Read-Host "Press ENTER to terminate..."
     }));
 
     setTimeout(() => {
+      if (!demoModeRef.current || restoreEpoch !== runtimeEpochRef.current) return;
       setDevices(prev => prev.map(d => {
         if (d.id === deviceId) {
           return {
@@ -2683,6 +2787,7 @@ Read-Host "Press ENTER to terminate..."
       addLog('SYSTEM', 'info', `[EEPROM] ${device.name}: Setze EEPROM auf Sicherungsabbild (${backup.firmwareVersion}) zurück...`);
 
       setTimeout(() => {
+        if (!demoModeRef.current || restoreEpoch !== runtimeEpochRef.current) return;
         setDevices(prev => prev.map(d => {
           // Check if version matches the latest, if not, update availability is true again
           const rollbackAvailable = backup.firmwareVersion !== d.latestFirmwareVersion;
@@ -2698,6 +2803,7 @@ Read-Host "Press ENTER to terminate..."
         addLog('SYSTEM', 'success', `[ROLLBACK] ${device.name}: Erfolgreich auf Sicherungspunkt (${backup.firmwareVersion}) wiederhergestellt.`);
 
         setTimeout(() => {
+          if (!demoModeRef.current || restoreEpoch !== runtimeEpochRef.current) return;
           setDevices(prev => prev.map(d => {
             if (d.id === deviceId) {
               return {
@@ -3119,23 +3225,12 @@ pause
   };
 
   const handleDownloadAndroidAPK = () => {
-    // Open the comprehensive warning and workaround helper modal for Huawei P30 Pro & Android 12
-    setShowApkWarningModal(true);
-    addLog('SYSTEM', 'warn', '[INSTALLATION] Parsing-Konflikt auf Huawei P30 Pro erkannt. Kompatibilitäts-Leitfaden wurde geöffnet.');
-  };
-
-  const handleDownloadMacOSDMG = () => {
-    // macOS DMG download trigger
-    const blob = new Blob([`# Sensorium for macOS Installer\n# Executable bound to Apple Secure Enclave & Zero-Duplication Hardware DRM.\n# Run Sensorium.app to establish remote linkage.`], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Sensorium_macOS_Installer.dmg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    addLog('SYSTEM', 'success', '[EXPORT] macOS App Disk Image (Sensorium_macOS_Installer.dmg) heruntergeladen. Apple Secure Enclave & Zero-Duplication Lizenzschlüssel initialisiert!');
+    window.open(
+      'https://github.com/designico5/sensorium/releases/download/v2.5.0-preview.1/MA-II-MI-0.1.0-Android-debug.apk',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    addLog('SYSTEM', 'info', '[RELEASE] Öffne das echte, debug-signierte Android-Preview-APK im GitHub Release Center.');
   };
 
   const handleDownloadMacOSHTMLWebLauncher = () => {
@@ -3258,64 +3353,17 @@ pause
     addLog('SYSTEM', 'success', '[EXPORT] macOS Instant Web App (.html) heruntergeladen. Doppelklicken auf macOS, um es ohne Installation direkt im Browser zu nutzen!');
   };
 
-  const handleDownloadFullProjectZIP = async () => {
-    addLog('SYSTEM', 'info', '[EXPORT] Packe gesamten Workspace Quellcode (inkl. React, Tailwind, Ableton Scripts, Setup-Wizards) in ein Zip-Archiv...');
-    
-    try {
-      const response = await fetch('/api/export-project');
-      if (!response.ok) {
-        throw new Error(`Server returned status ${response.status}`);
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'sensorium-full-project-source.zip';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      addLog('SYSTEM', 'success', '[EXPORT] Vollständiges Projekt-Zip-Archiv erfolgreich generiert und heruntergeladen! Enthält alle Quelldaten, Skripte und Assets.');
-    } catch (error: any) {
-      console.error('Error downloading project ZIP:', error);
-      addLog('SYSTEM', 'error', `[EXPORT] Download fehlgeschlagen: ${error.message}. Bitte versuchen Sie es erneut.`);
-    }
-  };
-
-  const handleDownloadIOSIPK = () => {
-    // iOS IPK download trigger
-    const blob = new Blob([`# Sensorium for iOS Package\n# Side-loadable package with AUv3 engine.`], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Sensorium_iOS_Companion.ipk';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    addLog('SYSTEM', 'success', '[EXPORT] iOS-Installationspaket (Sensorium_iOS_Companion.ipk) heruntergeladen. Bereit für Sideloading via Apple Configurator / AltStore!');
-  };
-
-  const handleDownloadAUv3VST3 = () => {
-    // Native Plugin Download
-    const blob = new Blob([`# Sensorium Native AUv3 / VST3 Plugin Bundle\n# Low-Latency MIDI Bridge & Remote script connector.`], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Sensorium_Native_Plugin.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    addLog('SYSTEM', 'success', '[EXPORT] AUv3 / VST3 Core Plugin Bundle (Sensorium_Native_Plugin.zip) heruntergeladen. Kopiere diese in den DAW Plug-In Ordner!');
-  };
-
   const playSimSound = (frequency: number, type: 'sine' | 'square' | 'triangle' | 'sawtooth' = 'sine', duration: number = 0.15) => {
     try {
+      if (!demoModeRef.current) return;
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') void ctx.resume();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       
@@ -3336,7 +3384,18 @@ pause
   };
 
   const handleStart1ClickWizard = () => {
-    if (isWizardRunning) return;
+    if (!demoModeRef.current || isWizardRunning || wizardIntervalRef.current) return;
+    const wizardEpoch = runtimeEpochRef.current;
+    const isCurrentWizard = () => demoModeRef.current && wizardEpoch === runtimeEpochRef.current;
+    const scheduleWizardTimeout = (callback: () => void, delayMs: number) => {
+      const timeout = setTimeout(() => {
+        wizardTimeoutsRef.current.delete(timeout);
+        if (isCurrentWizard()) callback();
+      }, delayMs);
+      wizardTimeoutsRef.current.add(timeout);
+    };
+
+    clearWizardJobs();
     setIsWizardRunning(true);
     setWizardSuccess(false);
     setWizardProgress(0);
@@ -3352,39 +3411,18 @@ pause
       { prg: 44, log: '[WIZARD] 📦 APK-Paket wird lokal im Browser signiert und gepackt.' },
       { prg: 58, log: '[WIZARD] 🌐 Virtuelle PWA-Brücke (Progressive Web App) wird an das P30 Pro gesendet...' },
       { prg: 72, log: '[WIZARD] ⚡ USB-ADB Tunneling Protokoll wird auf TCP Port 3000 geöffnet.' },
-      { prg: 86, log: '[WIZARD] 📋 Sync-URL kopiert: ' + window.location.origin },
+      { prg: 86, log: '[WIZARD] 📋 Sync-URL zur manuellen Übernahme bereit: ' + window.location.origin },
       { prg: 94, log: '[WIZARD] 📶 Kalibriere Signal-Latenz (Ping: 1.2ms | Jitter-Schutz: AKTIV)...' },
       { prg: 100, log: '[WIZARD] 🎉 Handshake ERFOLGREICH! Das P30 Pro ist jetzt gekoppelt.' }
     ];
 
     let currentPrg = 0;
-    const interval = setInterval(() => {
-      currentPrg += 2;
-      if (currentPrg > 100) {
-        currentPrg = 100;
-        clearInterval(interval);
-        setIsWizardRunning(false);
-        setWizardSuccess(true);
-        
-        // Play success sound
-        playSimSound(523.25, 'sine', 0.12); // C5
-        setTimeout(() => playSimSound(659.25, 'sine', 0.12), 100); // E5
-        setTimeout(() => playSimSound(783.99, 'sine', 0.2), 200); // G5
-        
-        // Copy origin to clipboard
-        try {
-          navigator.clipboard.writeText(window.location.origin);
-          setCopiedLink(true);
-          setTimeout(() => setCopiedLink(false), 3000);
-        } catch (e) {
-          console.warn('Clipboard write blocked:', e);
-        }
-
-        // Auto-turn on emulator and notify
-        addLog('SYSTEM', 'success', '[WIZARD] 1-Klick Auto-Setup abgeschlossen! Huawei P30 Pro Device Profile erfolgreich geladen.');
-        setShowAndroidSimulator(true);
+    wizardIntervalRef.current = setInterval(() => {
+      if (!isCurrentWizard()) {
+        clearWizardJobs();
+        return;
       }
-
+      currentPrg = Math.min(100, currentPrg + 2);
       setWizardProgress(currentPrg);
 
       // Check for logs to add
@@ -3405,6 +3443,19 @@ pause
         
         // Minor tick sound
         playSimSound(880, 'sine', 0.03);
+      }
+
+      if (currentPrg === 100) {
+        if (wizardIntervalRef.current) clearInterval(wizardIntervalRef.current);
+        wizardIntervalRef.current = null;
+        if (!isCurrentWizard()) return;
+        setIsWizardRunning(false);
+        setWizardSuccess(true);
+        playSimSound(523.25, 'sine', 0.12);
+        scheduleWizardTimeout(() => playSimSound(659.25, 'sine', 0.12), 100);
+        scheduleWizardTimeout(() => playSimSound(783.99, 'sine', 0.2), 200);
+        addLog('SYSTEM', 'success', '[DEMO WIZARD] Simuliertes Auto-Setup abgeschlossen. Keine APK, kein ADB-Tunnel und kein Gerät wurden physisch verändert.');
+        setShowAndroidSimulator(true);
       }
     }, 60);
   };
@@ -3493,6 +3544,8 @@ pause
   };
 
   const handleSyncAndroidCompanion = () => {
+    if (!demoModeRef.current) return;
+    const syncEpoch = runtimeEpochRef.current;
     setIsSyncingAndroid(true);
     setSyncLogs([]);
     
@@ -3509,6 +3562,10 @@ pause
     setSyncLogs([stepsList[0]]);
 
     const interval = setInterval(() => {
+      if (!demoModeRef.current || syncEpoch !== runtimeEpochRef.current) {
+        clearInterval(interval);
+        return;
+      }
       currentStep += 1;
       if (currentStep < stepsList.length) {
         setSyncLogs(prev => [...prev, stepsList[currentStep]]);
@@ -3526,6 +3583,8 @@ pause
   };
 
   const runOneClickDoctor = () => {
+    if (!demoModeRef.current) return;
+    const doctorEpoch = runtimeEpochRef.current;
     setIsDoctorRunning(true);
     setDoctorStatus('scanning');
     setDoctorProgress(0);
@@ -3552,6 +3611,10 @@ pause
 
     let currentStep = 0;
     const interval = setInterval(() => {
+      if (!demoModeRef.current || doctorEpoch !== runtimeEpochRef.current) {
+        clearInterval(interval);
+        return;
+      }
       if (currentStep < steps.length) {
         const item = steps[currentStep];
         setDoctorProgress(item.progress);
@@ -3608,7 +3671,7 @@ pause
 
   // Auto-pulse note simulation based on BPM and clockMultiplier
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!demoMode || !isPlaying || devices.length === 0) return;
 
     const intervalMs = (60 / (bpm * clockMultiplier)) * 1000;
     const interval = setInterval(() => {
@@ -3654,12 +3717,14 @@ pause
     }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [isPlaying, bpm, devices.length, clockMultiplier]);
+  }, [demoMode, isPlaying, bpm, devices.length, clockMultiplier]);
 
   // Pre-populate device latency histories on boot/mount so the charts don't render empty
   useEffect(() => {
+    if (!demoMode) return;
     setDevices((prevDevices) =>
       prevDevices.map((d) => {
+        if (d.operationalMode !== 'DEMO') return d;
         const base = d.latency;
         const history = Array.from({ length: 20 }).map((_, idx) => {
           // Add a beautiful wave-like pattern with slight randomness
@@ -3673,13 +3738,15 @@ pause
         };
       })
     );
-  }, []);
+  }, [demoMode]);
 
   // Periodic real-time latency sampler / jitter simulator (runs every 1000ms)
   useEffect(() => {
+    if (!demoMode) return;
     const timer = setInterval(() => {
       setDevices((prevDevices) =>
         prevDevices.map((d) => {
+          if (d.operationalMode !== 'DEMO') return d;
           let currentLat = d.latency;
           let status = d.status;
           let errorMessage = d.errorMessage;
@@ -3782,80 +3849,7 @@ pause
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [acceleratingDeviceId, latencySafetyBuffer]);
-
-  // Real-time zero-latency local background EventSource listener
-  useEffect(() => {
-    let sse: EventSource | null = null;
-    let reconnectTimeout: any = null;
-
-    const connectLocalSSE = () => {
-      sse = new EventSource('http://127.0.0.1:5127/events');
-
-      sse.onopen = () => {
-        const timeStr = new Date().toTimeString().split(' ')[0];
-        setLogs((prev) => [
-          {
-            id: String(Date.now()),
-            timestamp: timeStr,
-            source: 'SYSTEM',
-            level: 'success',
-            message: '🤖 [BRIDGE] Synchronisiert mit dem lokalen Sensorium 0-Latenz Bridge-Server! Echtzeit Ableton Link ist aktiv.'
-          },
-          ...prev
-        ]);
-      };
-
-      sse.onerror = () => {
-        sse?.close();
-        reconnectTimeout = setTimeout(connectLocalSSE, 4000); // retry every 4s
-      };
-
-      sse.onmessage = (event) => {
-        const data = event.data;
-        if (!data) return;
-
-        if (data.startsWith('BPM:')) {
-          const newBpm = parseFloat(data.substring(4));
-          if (!isNaN(newBpm)) {
-            setBpm(Math.round(newBpm));
-            const timeStr = new Date().toTimeString().split(' ')[0];
-            setLogs((prev) => [
-              {
-                id: String(Date.now() + 1),
-                timestamp: timeStr,
-                source: 'ABLETON',
-                level: 'info',
-                message: `Ableton-Tempo synchronisiert: ${newBpm.toFixed(2)} BPM`
-              },
-              ...prev
-            ]);
-          }
-        } else if (data.startsWith('STATE:')) {
-          const state = data.substring(6);
-          setIsPlaying(state === 'PLAYING');
-          const timeStr = new Date().toTimeString().split(' ')[0];
-          setLogs((prev) => [
-            {
-              id: String(Date.now() + 2),
-              timestamp: timeStr,
-              source: 'ABLETON',
-              level: 'info',
-              message: `Ableton-Wiedergabe synchronisiert: ${state}`
-            },
-            ...prev
-          ]);
-        }
-      };
-    };
-
-    connectLocalSSE();
-
-    return () => {
-      if (sse) sse.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    };
-  }, []);
+  }, [demoMode, acceleratingDeviceId, latencySafetyBuffer]);
 
   const addLog = (source: SystemLog['source'], level: SystemLog['level'], message: string) => {
     const timeStr = new Date().toTimeString().split(' ')[0];
@@ -3896,6 +3890,10 @@ pause
 
   // Helper to create a manual backup (Sicherungspunkt)
   const createRestorePoint = (deviceId: string, customName?: string) => {
+    if (!demoMode) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Keine simulierten Firmware-Sicherungspunkte verfügbar.');
+      return;
+    }
     const fw = getDeviceFirmware(deviceId, '');
     const newRp = {
       id: `rp-${deviceId}-${Date.now()}`,
@@ -3911,11 +3909,15 @@ pause
         restorePoints: [newRp, ...fw.restorePoints]
       }
     }));
-    addLog('SYSTEM', 'success', `[BACKUP] Sicherungspunkt "${newRp.name}" (${newRp.version}) erfolgreich erstellt.`);
+    addLog('SYSTEM', 'info', `[DEMO BACKUP] Virtueller Sicherungspunkt "${newRp.name}" (${newRp.version}) erstellt.`);
   };
 
   // Helper to restore device to a selected backup point
   const restoreDeviceToVersion = (deviceId: string, rpId: string) => {
+    if (!demoMode) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Keine simulierte Firmware-Wiederherstellung verfügbar.');
+      return;
+    }
     const fw = getDeviceFirmware(deviceId, '');
     const rp = fw.restorePoints.find(r => r.id === rpId);
     if (!rp) return;
@@ -3932,11 +3934,16 @@ pause
       }
     }));
     
-    addLog('SYSTEM', 'success', `[RESTORE] Gerät erfolgreich auf Version ${rp.version} wiederhergestellt (${rp.name}).`);
+    addLog('SYSTEM', 'info', `[DEMO RESTORE] Virtueller Gerätezustand auf ${rp.version} gesetzt (${rp.name}).`);
   };
 
   // Real-time automated firmware update procedure with multi-step flashing, download and auto-backup
   const startFirmwareUpdate = (deviceId: string) => {
+    if (!demoModeRef.current) {
+      addLog('SYSTEM', 'warn', '[STAGE MODUS] Firmware-I/O ist nicht implementiert und bleibt fail-closed.');
+      return;
+    }
+    const firmwareEpoch = runtimeEpochRef.current;
     const fw = getDeviceFirmware(deviceId, '');
     if (fw.isUpdating) return;
 
@@ -4039,6 +4046,7 @@ pause
     const intervalTime = 1200;
 
     const runNextStep = () => {
+      if (!demoModeRef.current || firmwareEpoch !== runtimeEpochRef.current) return;
       if (currentStepIdx >= steps.length) {
         setFirmwareData(prev => {
           const currentFw = prev[deviceId] || fw;
@@ -4231,6 +4239,10 @@ pause
         name: `${chosenType.split(' ')[0]} ${idx + 5}`,
         type: chosenType,
         status: 'Healthy',
+        isPhysicalHardware: false,
+        connectionType: 'VIRTUAL_SIMULATION',
+        operationalMode: 'DEMO',
+        telemetryVerified: false,
         portNameIn: `Virt Port ${idx + 5} In`,
         portNameOut: `Virt Port ${idx + 5} Out`,
         bufferUsage: Math.floor(Math.random() * 15) + 2,
@@ -4242,12 +4254,20 @@ pause
       };
     });
 
-    setDevices([...INITIAL_DEVICES, ...virtualDevices]);
+    const baseDemoDevices = INITIAL_DEVICES.map((device) => ({
+      ...device,
+      isPhysicalHardware: false,
+      connectionType: 'VIRTUAL_SIMULATION' as const,
+      operationalMode: 'DEMO' as const,
+      telemetryVerified: false,
+    }));
+    setDevices([...baseDemoDevices, ...virtualDevices]);
     addLog('SYSTEM', 'success', 'Successfully injected 60+ MIDI Ports. Mapping matrix scale-verified with fuzzy names.');
   };
 
   // Trigger Live Jitter trend acceleration for predictive alert simulation
   const handleTriggerTrendAcceleration = () => {
+    if (!demoMode) return;
     if (acceleratingDeviceId) {
       setAcceleratingDeviceId(null);
       addLog('SYSTEM', 'info', 'Jitter trend acceleration deactivated. Recalibrating Keyboard Synth to baseline...');
@@ -4272,24 +4292,27 @@ pause
 
   // Clear warnings and restore healthy
   const handleResetSimulator = () => {
+    if (!demoMode) return;
     addLog('SYSTEM', 'info', 'Flushing error states, resetting MIDI telemetry registers...');
     setAcceleratingDeviceId(null);
-    setDevices(INITIAL_DEVICES);
-    setAlerts([]);
-    setSelectedDevice(null);
-    addLog('SYSTEM', 'success', 'All ports reports healthy. Standard latency re-calibrated.');
+    loadDemoDevices();
+    addLog('SYSTEM', 'info', '[DEMO] Virtuelle Zustände auf Ausgangswerte zurückgesetzt.');
   };
 
   const handleAcknowledgeAlert = (id: string) => {
+    if (!demoModeRef.current) return;
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a)));
     addLog('SYSTEM', 'info', `Alert ID [${id}] acknowledged by user.`);
   };
 
   const handleAutoResolveAlert = (id: string) => {
+    if (!demoModeRef.current) return;
+    const resolveEpoch = runtimeEpochRef.current;
     addLog('SYSTEM', 'info', `Running diagnostic re-test for [${id}]...`);
     
     // Simulate testing delay and resolving
     setTimeout(() => {
+      if (!demoModeRef.current || resolveEpoch !== runtimeEpochRef.current) return;
       let targetDevId = '';
       if (id === 'alert-drift') targetDevId = 'dev-seq';
       if (id === 'alert-buffer') targetDevId = 'dev-keys';
@@ -4324,11 +4347,13 @@ pause
     >
       <style dangerouslySetInnerHTML={{ __html: THEME_AND_PULSE_CSS }} />
       {/* State-of-the-Art 3D Volumetric Wave & Frequency Cloud Canvas Engine */}
-      <LazyVolumetricFrequencyCloudBg
-        bpm={bpm}
-        isPlaying={isPlaying}
-        activeSignals={activeSignals}
-      />
+      {demoMode && (
+        <LazyVolumetricFrequencyCloudBg
+          bpm={bpm}
+          isPlaying={isPlaying}
+          activeSignals={activeSignals}
+        />
+      )}
       {/* Absolute top glowing bar to represent premium style */}
       <div className="h-1 bg-gradient-to-r from-neon-cyan via-neon-magenta to-neon-cyan glow-text-cyan opacity-80" />
 
@@ -4353,72 +4378,87 @@ pause
             {/* Compact Live Status LEDs */}
             <div className="hidden lg:flex items-center gap-3 pl-3 border-l border-white/10 font-mono text-[10px]">
               <div className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded border border-white/10">
-                <span className={`w-1.5 h-1.5 rounded-full ${devices.filter(d => d.isPhysicalHardware).length > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${devices.some(d => d.operationalMode === 'STAGE') ? 'bg-neon-cyan animate-pulse' : 'bg-amber-400'}`} />
                 <span className="text-gray-300">
-                  ⚡ PHYSISCH: <strong className={devices.filter(d => d.isPhysicalHardware).length > 0 ? 'text-emerald-400' : 'text-amber-400'}>{devices.filter(d => d.isPhysicalHardware).length} Ports</strong>
+                  OS-PORTS: <strong className={devices.some(d => d.operationalMode === 'STAGE') ? 'text-neon-cyan' : 'text-amber-400'}>{devices.filter(d => d.operationalMode === 'STAGE').length}</strong>
                 </span>
-                <span className="text-gray-500 font-bold">|</span>
-                <span className="text-gray-400">
-                  🧪 DEMO: <strong className="text-amber-300">{devices.filter(d => !d.isPhysicalHardware).length}</strong>
-                </span>
+                {demoMode && (
+                  <>
+                    <span className="text-gray-500 font-bold">|</span>
+                    <span className="text-gray-400">
+                      🧪 DEMO: <strong className="text-amber-300">{devices.filter(d => !d.isPhysicalHardware).length}</strong>
+                    </span>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-                <span className="text-gray-300">OSC: <strong className="text-neon-cyan">5125</strong></span>
+                <span className={`w-1.5 h-1.5 rounded-full ${demoMode ? 'bg-neon-cyan' : 'bg-gray-600'}`} />
+                <span className="text-gray-300">OSC: <strong className={demoMode ? 'text-neon-cyan' : 'text-gray-500'}>{demoMode ? 'DEMO' : 'AUS'}</strong></span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-neon-magenta animate-pulse' : 'bg-neon-yellow'}`} />
-                <span className="text-gray-300">Ableton: <strong className={isPlaying ? 'text-neon-magenta' : 'text-neon-yellow'}>{isPlaying ? 'SYNC' : 'STANDBY'}</strong></span>
+                <span className={`w-1.5 h-1.5 rounded-full ${demoMode && isPlaying ? 'bg-neon-magenta animate-pulse' : 'bg-gray-600'}`} />
+                <span className="text-gray-300">DAW: <strong className={demoMode && isPlaying ? 'text-neon-magenta' : 'text-gray-500'}>{demoMode ? (isPlaying ? 'DEMO SYNC' : 'DEMO STOP') : 'NICHT BESTÄTIGT'}</strong></span>
               </div>
             </div>
           </div>
 
           {/* Center: Live Transport & BPM Clock Engine */}
           <div className="flex items-center gap-2 bg-zinc-900/90 px-2.5 py-1 rounded-xl border border-white/10 font-mono text-[11px] shadow-inner">
-            <button
-              onClick={() => {
-                setIsPlaying(!isPlaying);
-                addLog('SYSTEM', 'info', `[TRANSPORT] Engine ${!isPlaying ? 'gestartet' : 'pausiert'}`);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 text-[10px] uppercase ${
-                isPlaying 
-                  ? 'bg-neon-magenta text-black shadow-[0_0_10px_rgba(255,0,128,0.4)]' 
-                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
-              }`}
-              title="Play/Pause Global Transport Clock"
-            >
-              {isPlaying ? '⏸ PAUSE' : '▶ PLAY'}
-            </button>
+            {demoMode && (
+              <>
+                <button
+                  onClick={() => {
+                    setIsPlaying(!isPlaying);
+                    addLog('SYSTEM', 'info', `[DEMO TRANSPORT] Engine ${!isPlaying ? 'gestartet' : 'pausiert'}`);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 text-[10px] uppercase ${
+                    isPlaying 
+                      ? 'bg-neon-magenta text-black shadow-[0_0_10px_rgba(255,0,128,0.4)]' 
+                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                  }`}
+                  title="Demo-Transport starten oder pausieren"
+                >
+                  {isPlaying ? '⏸ DEMO PAUSE' : '▶ DEMO PLAY'}
+                </button>
 
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-black/60 rounded border border-white/5">
-              <span className="text-gray-400 text-[9px] uppercase font-bold">BPM</span>
-              <button 
-                onClick={() => setBpm(Math.max(40, bpm - 1))}
-                className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-[10px]"
-              >
-                -
-              </button>
-              <span className="font-bold text-neon-yellow px-1 min-w-[28px] text-center">{bpm}</span>
-              <button 
-                onClick={() => setBpm(Math.min(240, bpm + 1))}
-                className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-[10px]"
-              >
-                +
-              </button>
-            </div>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-black/60 rounded border border-white/5">
+                  <span className="text-gray-400 text-[9px] uppercase font-bold">Demo BPM</span>
+                  <button 
+                    onClick={() => setBpm(Math.max(40, bpm - 1))}
+                    className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-[10px]"
+                    aria-label="Demo-Tempo um eins verringern"
+                  >
+                    -
+                  </button>
+                  <span className="font-bold text-neon-yellow px-1 min-w-[28px] text-center">{bpm}</span>
+                  <button 
+                    onClick={() => setBpm(Math.min(240, bpm + 1))}
+                    className="w-4 h-4 rounded bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-[10px]"
+                    aria-label="Demo-Tempo um eins erhöhen"
+                  >
+                    +
+                  </button>
+                </div>
+              </>
+            )}
 
-            <button
-              onClick={scanWebMidiHardware}
-              className="p-1 bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 rounded transition"
-              title="Scanne USB & MIDI Ports"
-            >
-              <RefreshCw className="w-3.5 h-3.5 animate-spin-slow" />
-            </button>
+            {!demoMode && (
+              <button
+                onClick={scanWebMidiHardware}
+                disabled={isScanningMidi}
+                aria-busy={isScanningMidi}
+                className="p-1 bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 rounded transition disabled:opacity-50"
+                title="OS-MIDI-Endpunkte neu erfassen"
+                aria-label="OS-MIDI-Endpunkte neu erfassen"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isScanningMidi ? 'animate-spin' : ''}`} />
+              </button>
+            )}
 
             <button
               onClick={triggerRealMidiPanic}
               className="p-1 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/40 rounded transition"
-              title="Emergency All-Notes-Off Panic"
+              title="Lokaler Safe Stop — sendet keine unbestätigten Befehle an physische Ports"
             >
               <Flame className="w-3.5 h-3.5" />
             </button>
@@ -4427,46 +4467,71 @@ pause
           {/* Right: Quick Utility & Drawer Toggles */}
           <div className="flex items-center gap-2 font-mono text-[10px]">
             <button
-              onClick={runFullSystemCalibration}
-              className="px-2.5 py-1 bg-gradient-to-r from-neon-cyan/30 via-emerald-500/30 to-neon-magenta/30 hover:from-neon-cyan/50 hover:to-neon-magenta/50 text-white border border-neon-cyan/50 rounded-lg transition flex items-center gap-1.5 font-bold uppercase shadow-[0_0_12px_rgba(0,240,255,0.3)] animate-pulse"
-              title="Vollspektrum Remote System-Kalibrierung starten (Loopback & Kreislauf Check)"
-            >
-              <Activity className="w-3.5 h-3.5 text-neon-cyan" />
-              <span>Kalibrierungs-Check</span>
-            </button>
-
-            <button
-              onClick={() => setShowVintageLibraryModal(true)}
-              className="px-2.5 py-1 bg-gradient-to-r from-amber-500/20 to-yellow-600/20 hover:from-amber-500/30 hover:to-yellow-600/30 text-amber-300 border border-amber-500/40 rounded-lg transition flex items-center gap-1.5 font-bold uppercase"
-              title="30-Jahre Hardware Bibliothek (1995-2026)"
-            >
-              <Cpu className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Hardware Lib</span>
-            </button>
-
-            <button
-              onClick={() => setShowAuraCoach(!showAuraCoach)}
-              className={`px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 font-bold uppercase ${
-                showAuraCoach 
-                  ? 'bg-neon-cyan text-black border-neon-cyan shadow-[0_0_10px_rgba(0,240,255,0.4)]' 
-                  : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
+              onClick={() => {
+                if (demoMode) void exitDemoMode();
+                else loadDemoDevices();
+              }}
+              className={`px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 font-bold uppercase border ${
+                demoMode
+                  ? 'bg-amber-400 text-black border-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.4)]'
+                  : 'bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border-amber-400/40'
               }`}
+              title={demoMode ? 'Demo vollständig verlassen und physische Ports neu erkennen' : 'Isolierte Simulation ohne Gerätezugriff starten'}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>AURA AI</span>
+              <Box className="w-3.5 h-3.5" />
+              <span>{demoMode ? 'Demo beenden' : 'Demo starten'}</span>
             </button>
 
-            <button
-              onClick={() => setShowMindmapOverlay(!showMindmapOverlay)}
-              className={`px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 font-bold uppercase ${
-                showMindmapOverlay 
-                  ? 'bg-neon-magenta text-black border-neon-magenta shadow-[0_0_10px_rgba(255,0,128,0.4)]' 
-                  : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Overlay</span>
-            </button>
+            {!demoMode && (
+              <button
+                onClick={runFullSystemCalibration}
+                disabled={isCalibrating}
+                className="px-2.5 py-1 bg-gradient-to-r from-neon-cyan/30 via-emerald-500/30 to-neon-magenta/30 hover:from-neon-cyan/50 hover:to-neon-magenta/50 text-white border border-neon-cyan/50 rounded-lg transition flex items-center gap-1.5 font-bold uppercase shadow-[0_0_12px_rgba(0,240,255,0.3)] disabled:opacity-50"
+                title="Read-only Hardware- und Software-Readiness prüfen"
+              >
+                <Activity className="w-3.5 h-3.5 text-neon-cyan" />
+                <span>Readiness-Check</span>
+              </button>
+            )}
+
+            {demoMode && (
+              <button
+                onClick={() => setShowVintageLibraryModal(true)}
+                className="px-2.5 py-1 bg-gradient-to-r from-amber-500/20 to-yellow-600/20 hover:from-amber-500/30 hover:to-yellow-600/30 text-amber-300 border border-amber-500/40 rounded-lg transition flex items-center gap-1.5 font-bold uppercase"
+                title="Demo-Hardwarebibliothek (1995-2026)"
+              >
+                <Cpu className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Demo Hardware</span>
+              </button>
+            )}
+
+            {demoMode && (
+              <button
+                onClick={() => setShowAuraCoach(!showAuraCoach)}
+                className={`px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 font-bold uppercase ${
+                  showAuraCoach 
+                    ? 'bg-neon-cyan text-black border-neon-cyan shadow-[0_0_10px_rgba(0,240,255,0.4)]' 
+                    : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>AURA Demo</span>
+              </button>
+            )}
+
+            {demoMode && (
+              <button
+                onClick={() => setShowMindmapOverlay(!showMindmapOverlay)}
+                className={`px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 font-bold uppercase ${
+                  showMindmapOverlay 
+                    ? 'bg-neon-magenta text-black border-neon-magenta shadow-[0_0_10px_rgba(255,0,128,0.4)]' 
+                    : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
+                }`}
+              >
+                <Network className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Demo-Overlay</span>
+              </button>
+            )}
 
             {/* Language Switcher Capsule */}
             <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10 font-mono text-[9px] font-bold">
@@ -4489,21 +4554,29 @@ pause
             </div>
 
             {/* Setup Assistant Re-run Toggle */}
-            <button
-              onClick={() => {
-                setSetupCompleted(false);
-                addLog('SYSTEM', 'info', '[SETUP] Kalibrierungs-Assistent manuell neu gestartet.');
-              }}
-              className="px-2 py-1 bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white border border-white/10 rounded-lg transition text-[10px] font-mono uppercase font-bold flex items-center gap-1 shrink-0"
-              title="Setup & System-Kalibrierung erneut öffnen"
-            >
-              ⚙ Setup
-            </button>
+            {demoMode && (
+              <button
+                onClick={() => {
+                  setSetupCompleted(false);
+                  addLog('SYSTEM', 'info', '[DEMO SETUP] Demo-Assistent manuell neu gestartet.');
+                }}
+                className="px-2 py-1 bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white border border-white/10 rounded-lg transition text-[10px] font-mono uppercase font-bold flex items-center gap-1 shrink-0"
+                title="Demo-Assistent erneut öffnen"
+              >
+                ⚙ Demo-Setup
+              </button>
+            )}
           </div>
         </header>
 
+        {demoMode && (
+          <div role="status" className="border-b border-amber-400/40 bg-amber-400/10 px-6 py-2 text-center font-mono text-[11px] font-black uppercase tracking-wider text-amber-200">
+            Demo-Modus — kein MIDI-, Geräte- oder Firmware-I/O · simulierte Werte · Audio nur nach expliziter Bedienung
+          </div>
+        )}
+
         {/* Collapsible AI Studio Coach Banner (AURA) */}
-        {setupCompleted && showAuraCoach && (
+        {demoMode && setupCompleted && showAuraCoach && (
           <div className="border-b border-neon-cyan/30 bg-black/80 backdrop-blur-xl relative">
             <div className="flex items-center justify-between px-6 py-1.5 bg-neon-cyan/10 border-b border-neon-cyan/20">
               <span className="font-mono text-[10px] font-bold text-neon-cyan uppercase flex items-center gap-2">
@@ -4525,8 +4598,7 @@ pause
               isPlaying={isPlaying}
               setIsPlaying={setIsPlaying}
               scanWebMidiHardware={scanWebMidiHardware}
-              loadDemoDevices={loadDemoDevices}
-              triggerRealMidiPanic={triggerRealMidiPanic}
+              demoMode={demoMode}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
             />
@@ -4534,7 +4606,7 @@ pause
         )}
 
         {/* Top-Drawer Global Mindmap Quick Inspector */}
-        {showMindmapOverlay && (
+        {demoMode && showMindmapOverlay && (
           <div className="border-b border-neon-magenta/30 bg-black/90 p-4 space-y-2 relative shadow-2xl backdrop-blur-2xl">
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -4568,7 +4640,7 @@ pause
         )}
 
         {/* Row 2: Master Workspaces & Sub-Navigation Bar */}
-        {setupCompleted && (
+        {setupCompleted && demoMode && (
           <div className="px-4 py-2 sm:px-6 bg-zinc-950/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
             {/* Tier 1: Master Category Tabs */}
             <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10 overflow-x-auto scrollbar-none gap-1">
@@ -4893,7 +4965,18 @@ pause
             addLog('SYSTEM', 'error', `[ErrorBoundary] Hauptbereich Fehler: ${error.message}`);
           }}
         >
-        {!setupCompleted ? (
+        {!demoMode ? (
+          <StageReadinessView
+            devices={devices}
+            webMidiStatus={webMidiStatus}
+            isScanning={isScanningMidi}
+            isCalibrating={isCalibrating}
+            onScan={scanWebMidiHardware}
+            onCalibrate={runFullSystemCalibration}
+            onSafeStop={triggerRealMidiPanic}
+            onStartDemo={loadDemoDevices}
+          />
+        ) : !setupCompleted ? (
           <div className="w-full py-6">
             <LazySetupGuide onComplete={() => {
               setSetupCompleted(true);
@@ -5014,20 +5097,22 @@ pause
                       className="w-full accent-neon-cyan bg-zinc-800"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <span className="text-neon-magenta font-bold block uppercase">Simulations-Takt ({customSettings.simulationSpeed}Hz)</span>
-                    <input 
-                      type="range" 
-                      min="10" 
-                      max="100" 
-                      value={customSettings.simulationSpeed}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        setCustomSettings(prev => ({ ...prev, simulationSpeed: val }));
-                      }}
-                      className="w-full accent-neon-magenta bg-zinc-800"
-                    />
-                  </div>
+                  {demoMode && (
+                    <div className="space-y-1.5">
+                      <span className="text-neon-magenta font-bold block uppercase">Demo-Takt ({customSettings.simulationSpeed}Hz)</span>
+                      <input 
+                        type="range" 
+                        min="10" 
+                        max="100" 
+                        value={customSettings.simulationSpeed}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setCustomSettings(prev => ({ ...prev, simulationSpeed: val }));
+                        }}
+                        className="w-full accent-neon-magenta bg-zinc-800"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <span className="text-neon-yellow font-bold block uppercase">Jitter Puffer ({customSettings.jitterFactor}ms)</span>
                     <input 
@@ -5082,6 +5167,7 @@ pause
             {activeTab === 'customdashboard' && (
               <LazyCustomDashboardStudio
                 devices={devices}
+                setDevices={setDevices}
                 activeSignals={activeSignals}
                 bpm={bpm}
                 setBpm={setBpm}
@@ -5099,6 +5185,16 @@ pause
                 setLatencySafetyBuffer={setLatencySafetyBuffer}
                 isClipAutomatic={isClipAutomatic}
                 setIsClipAutomatic={setIsClipAutomatic}
+                usbPollingRate={usbPollingRate}
+                setUsbPollingRate={setUsbPollingRate}
+                usbVoltageSim={usbVoltageSim}
+                setUsbVoltageSim={setUsbVoltageSim}
+                triggerThreshold={triggerThreshold}
+                setTriggerThreshold={setTriggerThreshold}
+                crosstalkCancellation={crosstalkCancellation}
+                setCrosstalkCancellation={setCrosstalkCancellation}
+                usbPowerSavingBlocked={usbPowerSavingBlocked}
+                setUsbPowerSavingBlocked={setUsbPowerSavingBlocked}
               />
             )}
 
@@ -5209,14 +5305,16 @@ pause
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono text-[10px]">
-                            0 Echte USB Ports (4 Demo-Simulationen)
+                            {demoMode ? `${devices.length} isolierte Demo-Knoten` : '0 physische Ports erkannt'}
                           </span>
                         )}
                       </div>
                       <p className="text-[11px] text-gray-400 mt-1">
                         {devices.filter(d => d.isPhysicalHardware).length > 0
-                          ? 'Physische USB-Geräte sind verbunden und senden echte Live-MIDI-Signale.'
-                          : 'Kein physisches USB-MIDI Gerät am PC erkannt. Schließen Sie ein USB-Keyboard oder Synth an.'}
+                          ? 'Physische USB-Ports wurden erkannt. Erst Live-Eingangsdaten markieren einen Port als signalverifiziert; eine Bühnenfreigabe ist separat.'
+                          : demoMode
+                          ? 'Die sichtbaren Geräte sind ausschließlich virtuelle Demo-Daten ohne Hardwarezugriff.'
+                          : 'Kein physisches USB-MIDI-Gerät erkannt. Der Stage-Modus erzeugt keine Ersatz- oder Zufallsdaten.'}
                       </p>
                     </div>
                   </div>
@@ -5244,12 +5342,14 @@ pause
                       >
                         ⚡ Nur Physisch ({devices.filter(d => d.isPhysicalHardware).length})
                       </button>
-                      <button
-                        onClick={() => setHardwareFilter('virtual')}
-                        className={`px-3 py-1.5 rounded-lg transition uppercase flex items-center gap-1 ${hardwareFilter === 'virtual' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-gray-400 hover:text-amber-300'}`}
-                      >
-                        🧪 Nur Demo ({devices.filter(d => !d.isPhysicalHardware).length})
-                      </button>
+                      {demoMode && (
+                        <button
+                          onClick={() => setHardwareFilter('virtual')}
+                          className={`px-3 py-1.5 rounded-lg transition uppercase flex items-center gap-1 ${hardwareFilter === 'virtual' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-gray-400 hover:text-amber-300'}`}
+                        >
+                          Nur Demo ({devices.filter(d => !d.isPhysicalHardware).length})
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -5266,10 +5366,10 @@ pause
                       Schließen Sie Ihr USB-Keyboard, Synthesizer oder Controller an. Das Betriebssystem und der Browser erkennen das Gerät automatisch per Web MIDI API.
                     </p>
                     <button
-                      onClick={() => setHardwareFilter('all')}
+                      onClick={loadDemoDevices}
                       className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold uppercase transition inline-flex items-center gap-2"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" /> Zu virtuellen Demo-Geräten wechseln
+                      <Box className="w-3.5 h-3.5" /> Isolierte Demo starten
                     </button>
                   </div>
                 )}
@@ -5907,19 +6007,21 @@ pause
                             >
                               Panic &amp; Handshakes
                             </button>
-                            <button
-                              onClick={() => setInspectorTab('firmware')}
-                              className={`px-4 py-3 font-display text-[10px] font-bold uppercase tracking-wider border-b-2 transition shrink-0 flex items-center gap-1.5 ${
-                                inspectorTab === 'firmware'
-                                  ? 'border-neon-magenta text-neon-magenta bg-white/[0.01]'
-                                  : 'border-transparent text-gray-400 hover:text-white'
-                              }`}
-                            >
-                              Firmware &amp; Update
-                              {getDeviceFirmware(activeDevice.id, activeDevice.name).updateAvailable && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-neon-magenta animate-pulse shadow-[0_0_8px_#ff007f]" />
-                              )}
-                            </button>
+                            {demoMode && (
+                              <button
+                                onClick={() => setInspectorTab('firmware')}
+                                className={`px-4 py-3 font-display text-[10px] font-bold uppercase tracking-wider border-b-2 transition shrink-0 flex items-center gap-1.5 ${
+                                  inspectorTab === 'firmware'
+                                    ? 'border-amber-300 text-amber-300 bg-white/[0.01]'
+                                    : 'border-transparent text-gray-400 hover:text-white'
+                                }`}
+                              >
+                                Demo: Firmware
+                                {getDeviceFirmware(activeDevice.id, activeDevice.name).updateAvailable && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
+                                )}
+                              </button>
+                            )}
                           </div>
 
                           {/* Render Sub-Tab content */}
@@ -6592,10 +6694,13 @@ pause
                             </div>
                           )}
 
-                          {inspectorTab === 'firmware' && (() => {
+                          {demoMode && inspectorTab === 'firmware' && (() => {
                             const fw = getDeviceFirmware(activeDevice.id, activeDevice.name);
                             return (
                               <div className="space-y-6">
+                                <div role="status" className="rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-[11px] font-mono font-bold text-amber-200">
+                                  DEMO — alle Firmware-, Backup-, Signatur- und Flash-Abläufe sind isolierte UI-Simulationen ohne Geräte-I/O.
+                                </div>
                                 {/* Top: Chip info and Action button */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                   {/* Hardware-Chip Info Card */}
@@ -7592,21 +7697,23 @@ pause
                             <span className="text-[10px] font-sans text-gray-300">Diagnose-Karten (Fehler)</span>
                             <input
                               type="checkbox"
-                              checked={visiblePanels.diagnosticCards}
-                              onChange={(e) => setVisiblePanels(prev => ({ ...prev, diagnosticCards: e.target.checked }))}
+                              checked={visiblePanels.diagnoseCards}
+                              onChange={(e) => setVisiblePanels(prev => ({ ...prev, diagnoseCards: e.target.checked }))}
                               className="w-3.5 h-3.5 text-neon-cyan bg-black border-white/10 rounded cursor-pointer accent-neon-cyan"
                             />
                           </div>
 
-                          <div className="flex items-center justify-between p-1.5 rounded bg-black/20 border border-white/5">
-                            <span className="text-[10px] font-sans text-gray-300">Simulator (Stresstest)</span>
-                            <input
-                              type="checkbox"
-                              checked={visiblePanels.simulator}
-                              onChange={(e) => setVisiblePanels(prev => ({ ...prev, simulator: e.target.checked }))}
-                              className="w-3.5 h-3.5 text-neon-cyan bg-black border-white/10 rounded cursor-pointer accent-neon-cyan"
-                            />
-                          </div>
+                          {demoMode && (
+                            <div className="flex items-center justify-between p-1.5 rounded bg-amber-300/5 border border-amber-300/20">
+                              <span className="text-[10px] font-sans text-amber-200">Demo-Simulator</span>
+                              <input
+                                type="checkbox"
+                                checked={visiblePanels.simulator}
+                                onChange={(e) => setVisiblePanels(prev => ({ ...prev, simulator: e.target.checked }))}
+                                className="w-3.5 h-3.5 text-amber-300 bg-black border-white/10 rounded cursor-pointer accent-amber-300"
+                              />
+                            </div>
+                          )}
 
                           <div className="flex items-center justify-between p-1.5 rounded bg-black/20 border border-white/5">
                             <span className="text-[10px] font-sans text-gray-300">Firmware &amp; Backup Center</span>
@@ -7635,7 +7742,7 @@ pause
                     </div>
 
                     {/* Was kaputt ist card */}
-                    {visiblePanels.diagnosticCards && (
+                    {visiblePanels.diagnoseCards && (
                       <div className="rounded-2xl glass-panel border border-white/5 p-5 space-y-4">
                         <h3 className="font-display font-bold text-sm uppercase tracking-wider text-gray-200 flex items-center gap-1.5">
                           <AlertOctagon className="w-4 h-4 text-neon-red" /> Active Diagnose Cards
@@ -7649,7 +7756,7 @@ pause
                     )}
 
                     {/* Simulator Control Board */}
-                    {visiblePanels.simulator && (
+                    {demoMode && visiblePanels.simulator && (
                       <LazySimulatorPanel
                         bpm={bpm}
                         isPlaying={isPlaying}
@@ -7846,39 +7953,39 @@ pause
 
                     <div className="flex flex-wrap gap-2 max-w-full lg:max-w-2xl justify-start lg:justify-end">
                       <button
-                        onClick={handleDownloadZeroImpactSetup}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-green/10 hover:bg-neon-green/20 border border-neon-green/40 text-[10px] font-mono font-bold text-neon-green transition shadow-lg shadow-neon-green/5"
-                        title="Download OS Zero-Impact Setup Wizard (.bat)"
+                        disabled
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-gray-500 cursor-not-allowed"
+                        title="Deaktiviert: der alte Setup-Assistent erfüllt die Release-Sicherheitsanforderungen nicht"
                       >
-                        <Download className="w-3.5 h-3.5 text-neon-green" /> OS Setup (.BAT)
+                        <Download className="w-3.5 h-3.5" /> OS Setup · Sicherheitsprüfung offen
                       </button>
                       <button
-                        onClick={handleDownloadMacOSDMG}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-magenta/10 hover:bg-neon-magenta/20 border border-neon-magenta/40 text-[10px] font-mono font-bold text-neon-magenta transition shadow-lg shadow-neon-magenta/5"
-                        title="Download macOS Disc Image App Bundle (.dmg)"
+                        disabled
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-gray-500 cursor-not-allowed"
+                        title="Noch nicht verfügbar: benötigt macOS-Build, Apple-Signatur und Notarisierung"
                       >
-                        <Download className="w-3.5 h-3.5 text-neon-magenta" /> macOS Installer (.DMG)
+                        <Download className="w-3.5 h-3.5" /> macOS DMG · nicht verfügbar
                       </button>
                       <button
-                        onClick={handleDownloadMacOSHTMLWebLauncher}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-cyan/10 hover:bg-neon-cyan/20 border border-neon-cyan/40 text-[10px] font-mono font-bold text-neon-cyan transition shadow-lg shadow-neon-cyan/5"
-                        title="Download macOS Instant Web Launcher (.html) - Open and use instantly in browser without installation!"
+                        disabled
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-gray-500 cursor-not-allowed"
+                        title="Nicht verfügbar: ein lokaler HTML-Launcher wäre außerhalb dieses Rechners nicht funktionsfähig"
                       >
-                        <Download className="w-3.5 h-3.5 text-neon-cyan" /> macOS Web-Launcher (.HTML)
+                        <Download className="w-3.5 h-3.5" /> macOS Web-Launcher · nicht verfügbar
                       </button>
                       <button
-                        onClick={handleDownloadIOSIPK}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/40 text-[10px] font-mono font-bold text-purple-400 transition"
-                        title="Download iOS Side-Loadable App Package (.ipk)"
+                        disabled
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-gray-500 cursor-not-allowed"
+                        title="Noch nicht verfügbar: benötigt Apple Developer Signatur und TestFlight"
                       >
-                        <Download className="w-3.5 h-3.5 text-purple-400" /> iOS Package (.IPK)
+                        <Download className="w-3.5 h-3.5" /> iOS IPA · nicht verfügbar
                       </button>
                       <button
-                        onClick={handleDownloadAUv3VST3}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-[10px] font-mono font-bold text-amber-400 transition"
-                        title="Download Native AUv3 / VST3 DAW Plugin (.zip)"
+                        disabled
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-[10px] font-mono font-bold text-gray-500 cursor-not-allowed"
+                        title="Noch nicht verfügbar: kein geprüftes natives Plug-in-Archiv vorhanden"
                       >
-                        <Download className="w-3.5 h-3.5 text-amber-400" /> Native Plugin (.ZIP)
+                        <Download className="w-3.5 h-3.5" /> AUv3/VST3 · nicht verfügbar
                       </button>
                       <button
                         onClick={handleDownloadPlugin}
@@ -7895,31 +8002,28 @@ pause
                         <Smartphone className="w-3.5 h-3.5 text-neon-cyan" /> Android Companion (.APK)
                       </button>
                       <a
-                        href="/api/export-project"
-                        download="sensorium-full-project-source.zip"
+                        href="https://github.com/designico5/sensorium/archive/refs/heads/master.zip"
+                        target="_blank"
+                        rel="noreferrer"
                         className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/15 hover:bg-yellow-500/25 border border-yellow-500/40 text-[10px] font-mono font-bold text-yellow-400 transition shadow-lg shadow-yellow-500/5 animate-pulse"
-                        title="Download Complete Project Source Code Workspace (.zip) - Perfect backup of all code, layout, scripts & configurations!"
+                        title="GitHub-Quellarchiv des aktuellen Master-Branches öffnen"
                         onClick={() => {
-                          addLog('SYSTEM', 'info', '[EXPORT] Packe gesamten Workspace Quellcode (inkl. React, Tailwind, Ableton Scripts, Setup-Wizards) in ein Zip-Archiv...');
-                          addLog('SYSTEM', 'warn', '[IMPORTANT] HINWEIS: Wenn Sie die App im eingebetteten Vorschau-Iframe ausführen, blockieren Browser-Sicherheitsrichtlinien oft Downloads (erzeugt leere/beschädigte ZIPs). Bitte öffnen Sie die App oben rechts über "Open in new tab" und laden Sie das Projekt dort herunter!');
-                          setTimeout(() => {
-                            addLog('SYSTEM', 'success', '[EXPORT] Vollständiges Projekt-Zip-Archiv erfolgreich generiert und heruntergeladen! Enthält alle Quelldaten, Skripte und Assets.');
-                          }, 2500);
+                          addLog('SYSTEM', 'info', '[EXPORT] Öffne das echte GitHub-Quellarchiv. Sensorium erzeugt lokal keine vorgetäuschte ZIP-Datei.');
                         }}
                       >
-                        <Download className="w-3.5 h-3.5 text-yellow-400 animate-bounce" /> Export Full Project (.ZIP)
+                        <Download className="w-3.5 h-3.5 text-yellow-400 animate-bounce" /> GitHub Source Archive (.ZIP)
                       </a>
                     </div>
                     {/* Sandboxing Warning Message */}
                     <div className="mt-4 p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 text-[10px] font-mono text-yellow-300/90 leading-normal">
                       <p className="font-bold flex items-center gap-1.5 text-yellow-400">
-                        ⚠️ WICHTIGER COMPILER- & DOWNLOAD-HINWEIS FÜR ARBEITSRÄUME:
+                        ⚠️ RELEASE-TRANSPARENZ:
                       </p>
                       <p className="mt-1">
-                        Aufgrund von <strong>Browser-Iframe-Sicherheitsbeschränkungen (Sandboxing)</strong> im AI Studio-Vorschaubildschirm kann der Download über das eingebettete Fenster als blockiert, 0-Byte-groß oder unvollständig (z.B. als HTML-Fehlerdatei) angezeigt werden.
+                        Nur tatsächlich gebaute und verifizierte Dateien werden als Download angeboten. Dateiendungen werden nicht simuliert und Schutzfunktionen des Betriebssystems bleiben aktiv.
                       </p>
                       <p className="mt-1.5 font-semibold text-white">
-                        LÖSUNG: Klicken Sie oben rechts auf den Button <span className="text-neon-cyan px-1 py-0.5 bg-neon-cyan/10 rounded border border-neon-cyan/20 font-sans font-bold">Open in new tab ↗</span>, um die App in einem vollwertigen Browser-Tab zu starten. Dort funktioniert der ZIP-Download sofort mit vollen 642 KB und allen Quelldateien!
+                        macOS, iOS und native AUv3/VST3-Pakete bleiben gesperrt, bis echte signierte Artefakte vorliegen. Das Quellarchiv wird direkt von GitHub geöffnet.
                       </p>
                     </div>
                   </div>
@@ -8156,56 +8260,32 @@ pause
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           <button
-                            disabled={isBuilding}
-                            onClick={() => startCompilation('exe')}
-                            className={`py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border transition flex items-center justify-center gap-1 ${
-                              isBuilding
-                                ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed'
-                                : buildType === 'exe'
-                                ? 'bg-neon-cyan text-black border-neon-cyan font-bold'
-                                : 'bg-neon-cyan/10 hover:bg-neon-cyan/20 border-neon-cyan/20 text-neon-cyan'
-                            }`}
+                            disabled
+                            className="py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border flex items-center justify-center gap-1 bg-white/5 border-white/5 text-gray-500 cursor-not-allowed"
+                            title="Die laufende portable EXE wird außerhalb der App als geprüftes GitHub-Release bereitgestellt"
                           >
-                            <Cpu className="w-3 h-3" /> Win11 EXE
+                            <Cpu className="w-3 h-3" /> Win11 EXE · extern
                           </button>
                           <button
-                            disabled={isBuilding}
-                            onClick={() => startCompilation('dmg')}
-                            className={`py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border transition flex items-center justify-center gap-1 ${
-                              isBuilding
-                                ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed'
-                                : buildType === 'dmg'
-                                ? 'bg-neon-magenta text-black border-neon-magenta font-bold'
-                                : 'bg-neon-magenta/10 hover:bg-neon-magenta/20 border-neon-magenta/20 text-neon-magenta'
-                            }`}
+                            disabled
+                            className="py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border flex items-center justify-center gap-1 bg-white/5 border-white/5 text-gray-500 cursor-not-allowed"
+                            title="Benötigt macOS, Apple-Signatur und Notarisierung"
                           >
-                            <Cpu className="w-3 h-3" /> macOS DMG
+                            <Cpu className="w-3 h-3" /> macOS · gesperrt
                           </button>
                           <button
-                            disabled={isBuilding}
-                            onClick={() => startCompilation('ipk')}
-                            className={`py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border transition flex items-center justify-center gap-1 ${
-                              isBuilding
-                                ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed'
-                                : buildType === 'ipk'
-                                ? 'bg-purple-500 text-black border-purple-500 font-bold'
-                                : 'bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20 text-purple-400'
-                            }`}
+                            disabled
+                            className="py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border flex items-center justify-center gap-1 bg-white/5 border-white/5 text-gray-500 cursor-not-allowed"
+                            title="Benötigt Apple Developer Signatur und TestFlight"
                           >
-                            <Smartphone className="w-3 h-3" /> iOS IPK
+                            <Smartphone className="w-3 h-3" /> iOS · gesperrt
                           </button>
                           <button
-                            disabled={isBuilding}
-                            onClick={() => startCompilation('vst3')}
-                            className={`py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border transition flex items-center justify-center gap-1 ${
-                              isBuilding
-                                ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed'
-                                : buildType === 'vst3'
-                                ? 'bg-amber-500 text-black border-amber-500 font-bold'
-                                : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 text-amber-400'
-                            }`}
+                            disabled
+                            className="py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border flex items-center justify-center gap-1 bg-white/5 border-white/5 text-gray-500 cursor-not-allowed"
+                            title="Kein geprüftes natives Plug-in-Archiv vorhanden"
                           >
-                            <Zap className="w-3 h-3" /> VST3/AUv3 Plugin
+                            <Zap className="w-3 h-3" /> VST3/AUv3 · gesperrt
                           </button>
                           <button
                             disabled={isBuilding}
@@ -8221,17 +8301,11 @@ pause
                             <Download className="w-3 h-3" /> Ableton .PY
                           </button>
                           <button
-                            disabled={isBuilding}
-                            onClick={() => startCompilation('apk')}
-                            className={`py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border transition flex items-center justify-center gap-1 ${
-                              isBuilding
-                                ? 'bg-white/5 border-white/5 text-gray-500 cursor-not-allowed'
-                                : buildType === 'apk'
-                                ? 'bg-neon-cyan text-black border-neon-cyan font-bold'
-                                : 'bg-neon-cyan/10 hover:bg-neon-cyan/20 border-neon-cyan/20 text-neon-cyan'
-                            }`}
+                            disabled
+                            className="py-2 px-2.5 rounded-xl font-display text-[9px] font-bold uppercase tracking-wider border flex items-center justify-center gap-1 bg-white/5 border-white/5 text-gray-500 cursor-not-allowed"
+                            title="Das echte debug-signierte APK wird im GitHub Release Center bereitgestellt"
                           >
-                            <Smartphone className="w-3 h-3" /> Android APK
+                            <Smartphone className="w-3 h-3" /> Android · extern
                           </button>
                         </div>
                       </div>
@@ -8284,51 +8358,21 @@ pause
                       </div>
 
                       {/* Download section triggered upon successful build */}
-                      {buildProgress === 100 && (
+                      {buildProgress === 100 && buildType === 'plugin' && (
                         <div className="mt-4 p-3 bg-neon-green/10 border border-neon-green/20 rounded-lg flex items-center justify-between">
                           <div>
                             <div className="font-mono text-[10px] text-neon-green font-bold uppercase tracking-wider">
-                              {buildType === 'exe' 
-                                ? 'Sensorium-Pro-2.0.0-Portable.exe' 
-                                : buildType === 'plugin' 
-                                ? 'Ableton_Remote_Script.py'
-                                : buildType === 'dmg'
-                                ? 'Sensorium_macOS_Installer.dmg'
-                                : buildType === 'ipk'
-                                ? 'Sensorium_iOS_Companion.ipk'
-                                : buildType === 'vst3'
-                                ? 'Sensorium_Native_Plugin.zip'
-                                : 'Sensorium-Companion-v2.apk'}
+                              Ableton_Remote_Script.py
                             </div>
                             <p className="font-sans text-[10px] text-gray-400 mt-0.5">
-                              {buildType === 'apk'
-                                ? 'Compile completed successfully for Android OS (ARM64 Native).'
-                                : buildType === 'dmg'
-                                ? 'Compile completed successfully for macOS (HFS+/APFS DMG container with Secure Enclave hardware binding).'
-                                : buildType === 'ipk'
-                                ? 'Compile completed successfully for iOS (AUv3 sideload package).'
-                                : buildType === 'vst3'
-                                ? 'Compile completed successfully for C++ VST3 / AudioUnit v3 Plugin Bundle.'
-                                : `Compile completed successfully for target architecture (${targetArch}).`}
+                              Quelltext-Remote-Script wurde lokal erzeugt. Vor Einsatz in Ableton prüfen.
                             </p>
                           </div>
                           <button
-                            onClick={
-                              buildType === 'exe' 
-                                ? handleDownloadPackager 
-                                : buildType === 'plugin' 
-                                ? handleDownloadPlugin
-                                : buildType === 'dmg'
-                                ? handleDownloadMacOSDMG
-                                : buildType === 'ipk'
-                                ? handleDownloadIOSIPK
-                                : buildType === 'vst3'
-                                ? handleDownloadAUv3VST3
-                                : handleDownloadAndroidAPK
-                            }
+                            onClick={handleDownloadPlugin}
                             className="px-4 py-1.5 bg-neon-green hover:bg-neon-green/90 text-black font-display font-bold text-[10px] uppercase tracking-wider rounded-md transition"
                           >
-                            Download Binaries
+                            Python-Script laden
                           </button>
                         </div>
                       )}
@@ -8439,27 +8483,27 @@ pause
                           </div>
                           <div>
                             <h4 className="font-display font-bold text-xs text-gray-200 uppercase tracking-wide">
-                              3. Standalone Installer
+                              3. Setup-Assistent
                             </h4>
                             <p className="font-sans text-[11px] text-gray-400 mt-1 leading-relaxed">
-                              Automatische portable Batch-Datei. Kopiert Scripte sicher in die Ableton Library und bereinigt alte Compiler-Locks.
+                              Der frühere Batch-Assistent bleibt deaktiviert, bis Prozessbesitz, lokale Authentifizierung und Rücknahmewege geprüft sind.
                             </p>
                           </div>
                           <div className="bg-black/40 p-2.5 rounded-lg border border-white/5 space-y-1">
                             <span className="block font-mono text-[9px] text-gray-500 uppercase">Eigenschaften:</span>
                             <span className="block text-[10px] text-neon-green font-mono font-bold">
-                              ✓ Ein-Klick Automatisierung
+                              Sicherheitsprüfung noch offen
                             </span>
                             <span className="block text-[10px] text-neon-green font-mono font-bold">
-                              ✓ 100% Deinstallierbar
+                              Kein Download in dieser Vorschau
                             </span>
                           </div>
                         </div>
                         <button
-                          onClick={handleDownloadZeroImpactSetup}
-                          className="w-full mt-4 py-2 rounded-xl bg-neon-green/15 hover:bg-neon-green/25 border border-neon-green/30 text-neon-green font-mono font-bold text-[10px] uppercase tracking-wider transition shadow-lg shadow-neon-green/5"
+                          disabled
+                          className="w-full mt-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-500 font-mono font-bold text-[10px] uppercase tracking-wider cursor-not-allowed"
                         >
-                          Setup (.BAT) laden
+                          Sicherheitsprüfung offen
                         </button>
                       </div>
 
@@ -9006,7 +9050,7 @@ pause
       </main>
 
       {/* Huawei P30 Pro / Android 12 Parsing Failure & PWA Installation Help Modal */}
-      {showApkWarningModal && (
+      {demoMode && showApkWarningModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
           <div className="relative w-full max-w-lg overflow-hidden border border-neon-yellow/30 rounded-2xl bg-zinc-950 shadow-2xl shadow-neon-yellow/10">
             {/* Header banner */}
@@ -9111,26 +9155,36 @@ pause
       {/* Full Spectrum Remote Loop Calibration Suite Modal */}
       {showCalibrationModal && (
         <div className="fixed inset-0 z-[120] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none">
-          <div className="w-full max-w-2xl bg-[#0d0e15] border border-neon-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.25)] overflow-hidden flex flex-col max-h-[90vh] text-left">
+          <div
+            ref={calibrationDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="readiness-dialog-title"
+            aria-describedby="readiness-dialog-description"
+            tabIndex={-1}
+            autoFocus
+            onKeyDown={handleCalibrationDialogKeyDown}
+            className="w-full max-w-2xl bg-[#0d0e15] border border-neon-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.25)] overflow-hidden flex flex-col max-h-[90vh] text-left"
+          >
             {/* Modal Header */}
             <div className="px-6 py-4 bg-gradient-to-r from-cyan-950/80 via-black to-purple-950/80 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${isCalibrating ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40 animate-pulse' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)]'}`}>
+                <div className={`p-2.5 rounded-xl ${isCalibrating ? 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/40 animate-pulse' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'}`}>
                   <Activity className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-display font-black text-base text-white tracking-wider uppercase flex items-center gap-2">
-                    Vollspektrum Remote System-Kalibrierung
+                  <h3 id="readiness-dialog-title" className="font-display font-black text-base text-white tracking-wider uppercase flex items-center gap-2">
+                    Read-only System-Readiness
                   </h3>
-                  <p className="text-xs text-gray-400 font-mono">
-                    Loopback-Test &amp; Hardware-Kreislauf Diagnose
+                  <p id="readiness-dialog-description" className="text-xs text-gray-400 font-mono">
+                    Passive Softwareprüfung · keine Ausgangssignale · Hardwareabnahme offen
                   </p>
                 </div>
               </div>
               <button
-                disabled={isCalibrating}
-                onClick={() => setShowCalibrationModal(false)}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition disabled:opacity-30"
+                onClick={closeCalibrationDialog}
+                aria-label={isCalibrating ? 'Readiness-Prüfung abbrechen' : 'Readiness-Dialog schließen'}
+                className="p-2.5 min-h-11 min-w-11 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition inline-flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -9147,9 +9201,9 @@ pause
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" /> {calibrationStep}
                       </span>
                     ) : (
-                      <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        ✓ KALIBRIERUNG VOLLSTÄNDIG - KREISLAUF BESTÄTIGT (100%)
+                      <span className="text-amber-300 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-300" />
+                        SOFTWAREDIAGNOSE BEENDET — HARDWAREABNAHME OFFEN
                       </span>
                     )}
                   </span>
@@ -9157,7 +9211,14 @@ pause
                 </div>
 
                 {/* Meter bar */}
-                <div className="w-full h-3.5 bg-zinc-900 rounded-full overflow-hidden p-0.5 border border-white/10">
+                <div
+                  className="w-full h-3.5 bg-zinc-900 rounded-full overflow-hidden p-0.5 border border-white/10"
+                  role="progressbar"
+                  aria-label="Fortschritt der Readiness-Prüfung"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={calibrationProgress}
+                >
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-neon-cyan via-emerald-400 to-neon-magenta transition-all duration-300 shadow-[0_0_12px_rgba(0,240,255,0.6)]"
                     style={{ width: `${calibrationProgress}%` }}
@@ -9171,8 +9232,8 @@ pause
                   <h4 className="font-mono text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                     System-Subsystem Prüfprotokoll
                   </h4>
-                  <span className="font-mono text-[10px] font-bold text-emerald-400">
-                    {calibrationResults.filter((r) => r.status === 'PASS').length}/6 Subsysteme Bestanden
+                  <span className="font-mono text-[10px] font-bold text-amber-300">
+                    {calibrationResults.filter((r) => r.status === 'SOFTWARE').length} Software / {calibrationResults.filter((r) => r.status === 'HARDWARE_OPEN').length} Hardware offen
                   </span>
                 </div>
 
@@ -9181,8 +9242,10 @@ pause
                     <div
                       key={idx}
                       className={`p-3.5 rounded-xl border text-xs transition flex items-start justify-between gap-3 ${
-                        step.status === 'PASS'
-                          ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
+                        step.status === 'SOFTWARE'
+                          ? 'bg-cyan-950/20 border-cyan-500/30 text-cyan-100'
+                          : step.status === 'HARDWARE_OPEN' || step.status === 'FAIL'
+                          ? 'bg-amber-950/20 border-amber-500/30 text-amber-100'
                           : step.status === 'RUNNING'
                           ? 'bg-cyan-950/40 border-neon-cyan/50 text-neon-cyan animate-pulse'
                           : 'bg-black/40 border-white/5 text-gray-500'
@@ -9199,9 +9262,19 @@ pause
                       </div>
 
                       <div className="shrink-0 pt-0.5 font-mono text-[10px] font-bold">
-                        {step.status === 'PASS' && (
-                          <span className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 uppercase">
-                            ✓ BESTANDEN
+                        {step.status === 'SOFTWARE' && (
+                          <span className="px-2 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase">
+                            Software
+                          </span>
+                        )}
+                        {step.status === 'HARDWARE_OPEN' && (
+                          <span className="px-2 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                            Hardware offen
+                          </span>
+                        )}
+                        {step.status === 'FAIL' && (
+                          <span className="px-2 py-1 rounded bg-red-500/20 text-red-300 border border-red-500/40 uppercase">
+                            Nicht verfügbar
                           </span>
                         )}
                         {step.status === 'RUNNING' && (
@@ -9234,11 +9307,10 @@ pause
               </button>
 
               <button
-                disabled={isCalibrating}
-                onClick={() => setShowCalibrationModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 text-black font-display font-bold text-xs uppercase tracking-wider hover:bg-emerald-400 transition shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-40"
+                onClick={closeCalibrationDialog}
+                className="px-5 py-2.5 min-h-11 rounded-xl bg-amber-400 text-black font-display font-bold text-xs uppercase tracking-wider hover:bg-amber-300 transition"
               >
-                {isCalibrating ? 'Bitte warten...' : '✓ Kreislauf Bestätigt'}
+                {isCalibrating ? 'Prüfung abbrechen' : 'Diagnose schließen'}
               </button>
             </div>
           </div>
@@ -9246,21 +9318,31 @@ pause
       )}
 
       {/* 30-Year Hardware Library & Auto-Recognition Modal (1995-2026) */}
-      <LazyVintageDeviceLibraryModal
-        isOpen={showVintageLibraryModal}
-        onClose={() => setShowVintageLibraryModal(false)}
-        onAddDeviceToStudio={(newDevice) => {
-          setDevices((prev) => {
-            const exists = prev.some(d => d.id === newDevice.id);
-            if (exists) return prev;
-            return [...prev, newDevice];
-          });
-          setSelectedDevice(newDevice);
-          setShowVintageLibraryModal(false);
-        }}
-        addLog={addLog}
-        existingDeviceIds={devices.map(d => d.id)}
-      />
+      {demoMode && (
+        <LazyVintageDeviceLibraryModal
+          isOpen={showVintageLibraryModal}
+          onClose={() => setShowVintageLibraryModal(false)}
+          onAddDeviceToStudio={(newDevice) => {
+            const demoDevice: MidiDevice = {
+              ...newDevice,
+              isPhysicalHardware: false,
+              connectionType: 'VIRTUAL_SIMULATION',
+              operationalMode: 'DEMO',
+              telemetryVerified: false,
+            };
+            setDevices((prev) => {
+              const exists = prev.some(d => d.id === demoDevice.id);
+              if (exists) return prev;
+              return [...prev, demoDevice];
+            });
+            setSelectedDevice(demoDevice);
+            setShowVintageLibraryModal(false);
+            addLog('SYSTEM', 'info', `[DEMO HARDWARE LIBRARY] ${demoDevice.name} wurde als virtuelles Demo-Gerät geladen.`);
+          }}
+          addLog={addLog}
+          existingDeviceIds={devices.map(d => d.id)}
+        />
+      )}
 
       {/* Footer credits with clean style & IP protection */}
       <footer className="py-4 px-4 border-t border-white/10 bg-black/90 text-center font-mono text-[11px] text-gray-400 space-y-1">

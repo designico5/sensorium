@@ -80,28 +80,7 @@ The application will be available at `http://localhost:3000`
 
 ### Method 2: Standalone Executable (Windows)
 
-#### Step 1: Download the Release
-
-Download the latest Windows executable from the releases page.
-
-#### Step 2: Extract the Archive
-
-Extract the ZIP file to a location of your choice (e.g., `C:\Sensorium`).
-
-#### Step 3: Configure Windows Defender
-
-Add the Sensorium folder to Windows Defender exclusions:
-
-1. Open Windows Security
-2. Go to Virus & threat protection
-3. Click "Manage settings"
-4. Scroll to "Exclusions"
-5. Click "Add or remove exclusions"
-6. Add the Sensorium folder as an exclusion
-
-#### Step 4: Run the Application
-
-Run `Sensorium.exe` as Administrator.
+**Not available yet.** The GitHub Releases page is the only approved source for a Windows binary. Do not run an unsigned or unverified executable, do not add a Defender exclusion, and do not start the application as Administrator. This section becomes active only after the signed artifact, checksum, provenance, installer smoke test, and rollback test are published.
 
 ### Method 3: Web Deployment
 
