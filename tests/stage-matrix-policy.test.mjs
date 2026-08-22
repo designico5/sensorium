@@ -82,6 +82,15 @@ test('integration coverage names an executable native integration suite', () => 
   assert.ok(integration.evidence.includes('sensorium-v2/crates/sensorium-audio/tests/integration_test.rs'));
 });
 
+test('visual regression has a multi-resolution layout guard without claiming pixel baselines', async () => {
+  const visual = matrix.domains
+    .find((domain) => domain.id === 'software')
+    .tests.find((testCase) => testCase.id === 'SW-009');
+  assert.equal(visual.status, 'PARTIAL');
+  assert.ok(visual.evidence.includes('sensorium-v2/packages/frontend/e2e/visual-layout.spec.mjs'));
+  await access(new URL('../sensorium-v2/packages/frontend/e2e/visual-layout.spec.mjs', import.meta.url));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);
