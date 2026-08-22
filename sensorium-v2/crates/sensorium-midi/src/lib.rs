@@ -1028,7 +1028,7 @@ mod tests {
 
     #[test]
     fn panic_button_trigger_and_check() {
-        let mut btn = PanicButton::new();
+        let btn = PanicButton::new();
         btn.trigger();
         assert!(btn.is_panic());
     }
