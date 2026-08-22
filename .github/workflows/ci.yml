@@ -123,6 +123,11 @@ jobs:
         working-directory: sensorium-v2
       - run: npm --workspace @sensorium/frontend test
         working-directory: sensorium-v2
+      - name: Install Chromium for browser E2E
+        working-directory: sensorium-v2/packages/frontend
+        run: npx playwright install --with-deps chromium
+      - run: npm --workspace @sensorium/frontend run test:e2e
+        working-directory: sensorium-v2
 
   mobile-preview-check:
     name: MA-II-MI Mobile Preview
