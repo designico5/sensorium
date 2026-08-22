@@ -53,6 +53,14 @@ test('parser fuzz target is present and independently buildable', async () => {
   assert.ok(fuzzCase.evidence.includes('sensorium-v2/fuzz/fuzz_targets/ump_parser.rs'));
 });
 
+test('malformed MIDI packets have bounded parser evidence', () => {
+  const malformed = matrix.domains
+    .find((domain) => domain.id === 'midi')
+    .tests.find((testCase) => testCase.id === 'MID-012');
+  assert.equal(malformed.status, 'PARTIAL');
+  assert.ok(malformed.evidence.includes('sensorium-v2/crates/sensorium-midi/src/lib.rs'));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);

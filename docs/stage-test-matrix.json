@@ -69,7 +69,7 @@
         { "id": "MID-009", "name": "same-name endpoint disambiguation", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "MID-010", "name": "device replacement", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "MID-011", "name": "packet loss and burst traffic", "status": "HIL_REQUIRED", "evidence": [] },
-        { "id": "MID-012", "name": "malformed packets", "status": "NOT_STARTED", "evidence": [] },
+        { "id": "MID-012", "name": "malformed packets", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "MID-013", "name": "rogue endpoint", "status": "BLOCKED_SECURITY", "evidence": [] },
         { "id": "MID-014", "name": "panic and All Notes Off", "status": "HIL_REQUIRED", "evidence": [] }
       ]
