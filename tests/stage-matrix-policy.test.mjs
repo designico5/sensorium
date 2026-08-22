@@ -3,6 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrix = JSON.parse(await readFile(new URL('../docs/stage-test-matrix.json', import.meta.url), 'utf8'));
+const inventory = JSON.parse(await readFile(new URL('../docs/hil-device-inventory.json', import.meta.url), 'utf8'));
 const ci = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
 
 const expectedDomains = new Map([
@@ -34,6 +35,18 @@ test('physical acceptance records require the complete evidence contract', () =>
     'recoveryTime', 'log', 'timestamp', 'operator', 'result',
   ]);
   assert.ok(domain.tests.every((testCase) => testCase.status === 'HIL_REQUIRED'));
+});
+
+test('HIL device inventory is additive, owner-filled, and references real matrix IDs', () => {
+  assert.equal(inventory.schemaVersion, '1.0.0');
+  assert.equal(inventory.additive, true);
+  assert.ok(inventory.devices.length >= 7);
+  const matrixIds = new Set(matrix.domains.flatMap((domain) => domain.tests.map((testCase) => testCase.id)));
+  for (const device of inventory.devices) {
+    assert.equal(device.status, 'NOT_STARTED');
+    assert.ok(device.exactModel.includes('OWNER_INPUT_REQUIRED'));
+    for (const testId of device.matrixTests) assert.ok(matrixIds.has(testId), `${device.id} references unknown ${testId}`);
+  }
 });
 
 test('no physical test is falsely marked as passed', () => {

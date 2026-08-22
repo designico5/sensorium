@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "1.0.0",
+  "title": "Sensorium owner-supplied HIL device inventory",
+  "truthRule": "This inventory defines test targets only. It never substitutes for a signed stage-evidence record.",
+  "statusVocabulary": ["NOT_STARTED", "IN_PROGRESS", "PASS", "FAIL", "BLOCKED"],
+  "additive": true,
+  "devices": [
+    {
+      "id": "android-s23-ultra",
+      "category": "mobile-ar",
+      "exactModel": "OWNER_INPUT_REQUIRED: Samsung Galaxy S23 Ultra SKU",
+      "firmware": "OWNER_INPUT_REQUIRED",
+      "driver": "Android USB/ADB driver version required",
+      "os": "OWNER_INPUT_REQUIRED: Android build",
+      "connections": ["USB-C", "Wi-Fi 6/6E"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["HIL-004", "DSP-004", "DSP-005", "DSP-006"],
+      "evidenceDirectory": "evidence/stage/android-s23-ultra/"
+    },
+    {
+      "id": "owner-asio-interface",
+      "category": "audio-interface",
+      "exactModel": "OWNER_INPUT_REQUIRED: ASIO interface and revision",
+      "firmware": "OWNER_INPUT_REQUIRED",
+      "driver": "OWNER_INPUT_REQUIRED: ASIO driver version",
+      "os": "OWNER_INPUT_REQUIRED: Windows build",
+      "connections": ["USB-C/USB-A or Thunderbolt: owner input required"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["AUD-001", "AUD-002", "AUD-003", "AUD-006", "AUD-007", "AUD-010", "AUD-011", "AUD-016"],
+      "evidenceDirectory": "evidence/stage/owner-asio-interface/"
+    },
+    {
+      "id": "owner-wasapi-exclusive",
+      "category": "windows-audio",
+      "exactModel": "OWNER_INPUT_REQUIRED: Windows audio endpoint",
+      "firmware": "N/A",
+      "driver": "Microsoft inbox driver version required",
+      "os": "OWNER_INPUT_REQUIRED: Windows build",
+      "connections": ["WASAPI Exclusive"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["AUD-001", "AUD-002", "AUD-004", "AUD-006", "AUD-007", "AUD-010", "AUD-015"],
+      "evidenceDirectory": "evidence/stage/owner-wasapi-exclusive/"
+    },
+    {
+      "id": "owner-coreaudio-interface",
+      "category": "macos-audio",
+      "exactModel": "OWNER_INPUT_REQUIRED: CoreAudio interface",
+      "firmware": "OWNER_INPUT_REQUIRED",
+      "driver": "Apple CoreAudio plus vendor version if applicable",
+      "os": "OWNER_INPUT_REQUIRED: macOS build",
+      "connections": ["USB-C/Thunderbolt: owner input required"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["AUD-001", "AUD-002", "AUD-005", "AUD-006", "AUD-007", "AUD-010", "AUD-015"],
+      "evidenceDirectory": "evidence/stage/owner-coreaudio-interface/"
+    },
+    {
+      "id": "owner-midi-ump-endpoint",
+      "category": "midi",
+      "exactModel": "OWNER_INPUT_REQUIRED: MIDI 2.0/UMP endpoint",
+      "firmware": "OWNER_INPUT_REQUIRED",
+      "driver": "OWNER_INPUT_REQUIRED: vendor MIDI driver",
+      "os": "OWNER_INPUT_REQUIRED",
+      "connections": ["USB or network MIDI: owner input required"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["MID-001", "MID-002", "MID-003", "MID-004", "MID-005", "MID-006", "MID-007", "MID-008", "MID-009", "MID-010", "MID-011", "MID-012", "MID-014"],
+      "evidenceDirectory": "evidence/stage/owner-midi-ump-endpoint/"
+    },
+    {
+      "id": "owner-managed-switch",
+      "category": "network",
+      "exactModel": "OWNER_INPUT_REQUIRED: managed Ethernet switch",
+      "firmware": "OWNER_INPUT_REQUIRED",
+      "driver": "N/A",
+      "os": "N/A",
+      "connections": ["100 Mbit", "1 Gbit", "WLAN uplink if applicable"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["NET-001", "NET-002", "NET-003", "NET-004", "NET-005", "NET-006", "NET-009"],
+      "evidenceDirectory": "evidence/stage/owner-managed-switch/"
+    },
+    {
+      "id": "owner-touch-display",
+      "category": "display-touch",
+      "exactModel": "OWNER_INPUT_REQUIRED: touch display and touch controller",
+      "firmware": "OWNER_INPUT_REQUIRED",
+      "driver": "OWNER_INPUT_REQUIRED: display/touch driver",
+      "os": "OWNER_INPUT_REQUIRED: Windows build",
+      "connections": ["DisplayPort/HDMI", "USB touch link"],
+      "status": "NOT_STARTED",
+      "matrixTests": ["DSP-001", "DSP-002", "DSP-003", "DSP-004", "DSP-005", "DSP-006", "DSP-007", "DSP-008", "DSP-009", "DSP-010", "DSP-011"],
+      "evidenceDirectory": "evidence/stage/owner-touch-display/"
+    }
+  ]
+}
