@@ -28,6 +28,17 @@ pub struct BiquadCoeffs {
 impl BiquadCoeffs {
     /// Compute biquad coefficients for the given filter type.
     pub fn new(filter_type: FilterType, cutoff_hz: f64, q: f64, sample_rate: f64) -> Self {
+        let sample_rate = if sample_rate.is_finite() && sample_rate > 0.0 {
+            sample_rate
+        } else {
+            48_000.0
+        };
+        let cutoff_hz = if cutoff_hz.is_finite() {
+            cutoff_hz.clamp(1.0, sample_rate * 0.49)
+        } else {
+            1_000.0_f64.min(sample_rate * 0.49)
+        };
+        let q = if q.is_finite() && q > 0.0 { q } else { 0.707 };
         let omega = 2.0 * std::f64::consts::PI * cutoff_hz / sample_rate;
         let sin_omega = omega.sin();
         let cos_omega = omega.cos();
@@ -138,6 +149,11 @@ pub struct AudioGraph {
 impl AudioGraph {
     /// Create a new audio graph with unity gain, no filter.
     pub fn new(sample_rate: f64) -> Self {
+        let sample_rate = if sample_rate.is_finite() && sample_rate > 0.0 {
+            sample_rate
+        } else {
+            48_000.0
+        };
         info!(sample_rate, "Audio DSP graph created (unity, no filter)");
         Self {
             gain_linear: 1.0,
@@ -151,6 +167,12 @@ impl AudioGraph {
 
     /// Create a graph with initial gain in dB.
     pub fn with_gain(sample_rate: f64, gain_db: f64) -> Self {
+        let sample_rate = if sample_rate.is_finite() && sample_rate > 0.0 {
+            sample_rate
+        } else {
+            48_000.0
+        };
+        let gain_db = if gain_db.is_finite() { gain_db.clamp(-120.0, 24.0) } else { 0.0 };
         let linear = 10.0f64.powf(gain_db / 20.0);
         info!(sample_rate, gain_db, linear, "Audio DSP graph created (gain)");
         Self {
@@ -165,12 +187,13 @@ impl AudioGraph {
 
     /// Set the gain in dB.
     pub fn set_gain_db(&mut self, gain_db: f64) {
+        let gain_db = if gain_db.is_finite() { gain_db.clamp(-120.0, 24.0) } else { 0.0 };
         self.gain_linear = 10.0f64.powf(gain_db / 20.0);
     }
 
     /// Set the gain as a linear multiplier.
     pub fn set_gain_linear(&mut self, gain: f64) {
-        self.gain_linear = gain;
+        self.gain_linear = if gain.is_finite() { gain.clamp(0.0, 16.0) } else { 1.0 };
     }
 
     /// Enable a filter on both channels.
@@ -241,6 +264,11 @@ impl AudioGraph {
 
     /// Update the sample rate. Resets filter state.
     pub fn set_sample_rate(&mut self, sample_rate: f64) {
+        let sample_rate = if sample_rate.is_finite() && sample_rate > 0.0 {
+            sample_rate
+        } else {
+            48_000.0
+        };
         self.sample_rate = sample_rate;
         self.filter_l.reset();
         self.filter_r.reset();
@@ -422,6 +450,30 @@ mod tests {
         state.reset();
         assert_eq!(state.x1, 0.0);
         assert_eq!(state.y1, 0.0);
+    }
+
+    #[test]
+    fn invalid_audio_parameters_fail_safe_to_finite_values() {
+        let coeffs = BiquadCoeffs::new(FilterType::Lowpass, f64::NAN, 0.0, 0.0);
+        assert!(coeffs.b0.is_finite());
+        assert!(coeffs.a2.is_finite());
+
+        let mut graph = AudioGraph::with_gain(f64::NAN, f64::INFINITY);
+        graph.set_gain_db(f64::NEG_INFINITY);
+        graph.set_gain_linear(f64::NAN);
+        graph.set_sample_rate(f64::NEG_INFINITY);
+        assert!(graph.sample_rate().is_finite());
+        assert!(graph.current_gain().is_finite());
+    }
+
+    #[test]
+    fn odd_interleaved_buffer_does_not_touch_trailing_sample() {
+        let mut graph = AudioGraph::with_gain(48_000.0, -6.0);
+        let mut buffer = [1.0_f32, 1.0, 1.0];
+        graph.process_interleaved(&mut buffer);
+        assert!(buffer[0] < 1.0);
+        assert!(buffer[1] < 1.0);
+        assert_eq!(buffer[2], 1.0);
     }
 }
 

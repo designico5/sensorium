@@ -18,7 +18,7 @@ The machine-readable source is [`stage-test-matrix.json`](./stage-test-matrix.js
 
 ## Current result
 
-The browser demo is usable and explicitly marked as simulation. The physical validation result remains **0% proven** because no completed HIL record exists in this repository. The current V2 frontend build and boundary tests do not change that verdict.
+The browser demo is usable and explicitly marked as simulation. The isolated native MIDI crate currently passes 36 tests and the audio-DSP crate passes 21 tests; those are software evidence only. The physical validation result remains **0% proven** because no completed HIL record exists in this repository. The current V2 frontend build and boundary tests do not change that verdict.
 
 ## Test domains
 

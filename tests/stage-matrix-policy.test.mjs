@@ -50,5 +50,7 @@ test('CI watches the real branch and runs the matrix plus active previews', () =
   assert.match(ci, /node --test tests\/stage-matrix-policy\.test\.mjs/);
   assert.match(ci, /name:\s*Sensorium V2 Frontend/);
   assert.match(ci, /name:\s*MA-II-MI Mobile Preview/);
+  assert.match(ci, /name:\s*MIDI and Audio Safety Crates/);
+  assert.match(ci, /cargo test -p sensorium-midi -p sensorium-audio --lib/);
   assert.doesNotMatch(ci, /continue-on-error:\s*true/);
 });

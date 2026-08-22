@@ -1,8 +1,8 @@
 use anyhow::Result;
-use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 use tokio::io::AsyncReadExt;
 use tracing::{info, warn};
@@ -97,24 +97,63 @@ impl UmpPacket {
         UmpPacketSize::from_message_type(msg_type)
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let cap = self.size() as usize;
-        let mut buf = BytesMut::with_capacity(cap);
-        buf.put_u8((self.message_type << 4) | (self.group & 0x0F));
-        buf.put_u8(self.status);
-        buf.put_u8(self.data1);
-        buf.put_u8(self.data2);
-        for i in 0..self.data_len as usize {
-            buf.put_u8(self.data[i]);
+    /// Number of bytes required by this packet's message type.
+    #[inline]
+    pub fn encoded_len(&self) -> usize {
+        self.size() as usize
+    }
+
+    /// Encode into a caller-owned fixed buffer without allocating.
+    ///
+    /// This is the path intended for a real-time or bounded transport
+    /// boundary. It rejects a packet whose payload length does not match the
+    /// message type instead of silently truncating or over-writing a buffer.
+    pub fn write_bytes(&self, out: &mut [u8; 16]) -> Result<usize> {
+        let encoded_len = self.encoded_len();
+        let payload_len = encoded_len.saturating_sub(4);
+        if self.data_len as usize > payload_len {
+            anyhow::bail!(
+                "UMP payload length {} exceeds {} bytes for message type 0x{:X}",
+                self.data_len,
+                payload_len,
+                self.message_type,
+            );
         }
-        buf.to_vec()
+
+        out[..encoded_len].fill(0);
+        out[0] = (self.message_type << 4) | (self.group & 0x0F);
+        out[1] = self.status;
+        out[2] = self.data1;
+        out[3] = self.data2;
+        let data_len = self.data_len as usize;
+        out[4..4 + data_len].copy_from_slice(&self.data[..data_len]);
+        Ok(encoded_len)
+    }
+
+    /// Encode into an owned vector for non-real-time callers.
+    pub fn try_to_bytes(&self) -> Result<Vec<u8>> {
+        let mut out = [0u8; 16];
+        let encoded_len = self.write_bytes(&mut out)?;
+        Ok(out[..encoded_len].to_vec())
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.try_to_bytes().unwrap_or_default()
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        if bytes.is_empty() {
-            anyhow::bail!("empty UMP bytes");
-        }
+        if bytes.is_empty() { anyhow::bail!("empty UMP bytes"); }
         let message_type = bytes[0] >> 4;
+        let message_type = UmpMessageType::try_from(message_type)?;
+        let expected_len = UmpPacketSize::from_message_type(message_type) as usize;
+        if bytes.len() != expected_len {
+            anyhow::bail!(
+                "invalid UMP length {} for message type {:?}; expected {}",
+                bytes.len(),
+                message_type,
+                expected_len,
+            );
+        }
         let group = bytes[0] & 0x0F;
         let status = bytes.get(1).copied().unwrap_or(0);
         let data1 = bytes.get(2).copied().unwrap_or(0);
@@ -122,13 +161,13 @@ impl UmpPacket {
 
         let mut data = [0u8; 12];
         let mut data_len = 0u8;
-        for i in 4..bytes.len().min(16) {
+        for i in 4..bytes.len() {
             data[i - 4] = bytes[i];
             data_len += 1;
         }
 
         Ok(Self {
-            message_type,
+            message_type: message_type as u8,
             group,
             status,
             data1,
@@ -170,6 +209,9 @@ impl Default for MidiRouter {
 
 impl MidiRouter {
     pub fn route(&self, packet: &UmpPacket) -> Result<RouteDecision> {
+        if self.channel_count == 0 || self.channel_count > 16 {
+            anyhow::bail!("channel_count must be between 1 and 16");
+        }
         let channel = (packet.group % self.channel_count as u8) as usize;
         Ok(RouteDecision {
             channel,
@@ -186,8 +228,8 @@ impl MidiRouter {
 /// Designed for sub-millisecond response: no allocation, no locking,
 /// just a flag check in the audio callback.
 pub struct PanicButton {
-    panic_triggered: bool,
-    all_notes_off_sent: bool,
+    panic_triggered: AtomicBool,
+    all_notes_off_sent: AtomicBool,
 }
 
 impl Default for PanicButton {
@@ -200,8 +242,8 @@ impl PanicButton {
     /// Create a new panic button in idle state.
     pub fn new() -> Self {
         Self {
-            panic_triggered: false,
-            all_notes_off_sent: false,
+            panic_triggered: AtomicBool::new(false),
+            all_notes_off_sent: AtomicBool::new(false),
         }
     }
 
@@ -209,16 +251,16 @@ impl PanicButton {
     ///
     /// This sets an atomic flag that the audio callback checks
     /// every cycle. Response time: < 1 audio block (~5ms @ 48kHz/256).
-    pub fn trigger(&mut self) {
-        self.panic_triggered = true;
-        self.all_notes_off_sent = false;
+    pub fn trigger(&self) {
+        self.panic_triggered.store(true, Ordering::Release);
+        self.all_notes_off_sent.store(false, Ordering::Release);
         warn!("PANIC TRIGGERED — all notes off");
     }
 
     /// Check if panic is active. Called from the audio hot-path.
     #[inline(always)]
     pub fn is_panic(&self) -> bool {
-        self.panic_triggered
+        self.panic_triggered.load(Ordering::Acquire)
     }
 
     /// Generate All Notes Off messages for all 16 MIDI channels.
@@ -227,7 +269,7 @@ impl PanicButton {
     /// Controllers + CC 123 = All Notes Off) that should be sent
     /// immediately.
     pub fn generate_all_notes_off(&mut self) -> Vec<UmpPacket> {
-        if self.all_notes_off_sent {
+        if self.all_notes_off_sent.load(Ordering::Acquire) {
             return Vec::new();
         }
 
@@ -255,16 +297,16 @@ impl PanicButton {
             });
         }
 
-        self.all_notes_off_sent = true;
-        self.panic_triggered = false;
+        self.all_notes_off_sent.store(true, Ordering::Release);
+        self.panic_triggered.store(false, Ordering::Release);
         info!("All Notes Off sent for 16 groups (32 messages)");
         messages
     }
 
     /// Reset the panic state.
     pub fn reset(&mut self) {
-        self.panic_triggered = false;
-        self.all_notes_off_sent = false;
+        self.panic_triggered.store(false, Ordering::Release);
+        self.all_notes_off_sent.store(false, Ordering::Release);
     }
 }
 
@@ -315,6 +357,24 @@ impl<const N: usize> MidiBuffer<N> {
         self.head = 0;
         self.len = 0;
         result
+    }
+
+    /// Drain into caller-owned storage without allocating.
+    ///
+    /// Returns the number of packets copied. If `out` is too small, only the
+    /// first `out.len()` packets are copied and the remainder stays queued.
+    pub fn drain_into(&mut self, out: &mut [UmpPacket]) -> usize {
+        let count = self.len.min(out.len());
+        for (i, slot) in out.iter_mut().take(count).enumerate() {
+            let idx = (self.head + i) % N;
+            *slot = self.packets[idx];
+        }
+        self.head = (self.head + count) % N;
+        self.len -= count;
+        if self.len == 0 {
+            self.head = 0;
+        }
+        count
     }
 
     /// Number of packets currently buffered.
@@ -507,7 +567,7 @@ impl WebTransportClient {
     pub async fn send_ump(&self, packet: &UmpPacket) -> Result<()> {
         let conn = self.connection.as_ref()
             .ok_or_else(|| anyhow::anyhow!("not connected"))?;
-        let data = packet.to_bytes();
+        let data = packet.try_to_bytes()?;
         let len = data.len() as u16;
 
         let mut stream = conn.open_uni().await
@@ -899,6 +959,40 @@ mod tests {
     }
 
     #[test]
+    fn ump_rejects_truncated_and_oversized_packets() {
+        let valid = UmpPacket::new_32bit(0x3, 0, 0x90, 60, 100);
+        assert!(UmpPacket::from_bytes(&valid.to_bytes()[..3]).is_err());
+
+        let invalid = UmpPacket {
+            message_type: 0x3,
+            group: 0,
+            status: 0x90,
+            data1: 60,
+            data2: 100,
+            data: [0; 12],
+            data_len: 1,
+        };
+        assert!(invalid.try_to_bytes().is_err());
+    }
+
+    #[test]
+    fn ump_fixed_buffer_encoding_is_bounded() {
+        let packet = UmpPacket {
+            message_type: 0x4,
+            group: 2,
+            status: 0x20,
+            data1: 60,
+            data2: 0,
+            data: [1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0],
+            data_len: 4,
+        };
+        let mut buffer = [0u8; 16];
+        assert_eq!(packet.write_bytes(&mut buffer).unwrap(), 8);
+        assert_eq!(&buffer[..4], &[0x42, 0x20, 60, 0]);
+        assert_eq!(&buffer[4..8], &[1, 2, 3, 4]);
+    }
+
+    #[test]
     fn router_respects_channel_count() {
         let router = MidiRouter {
             channel_count: 8,
@@ -915,6 +1009,13 @@ mod tests {
         };
         let decision = router.route(&pkt).unwrap();
         assert_eq!(decision.channel, 2);
+    }
+
+    #[test]
+    fn router_rejects_invalid_channel_count() {
+        let packet = UmpPacket::new_32bit(0x3, 0, 0x90, 60, 100);
+        assert!(MidiRouter { channel_count: 0, per_note_enabled: false }.route(&packet).is_err());
+        assert!(MidiRouter { channel_count: 17, per_note_enabled: false }.route(&packet).is_err());
     }
 
     // ── Panic Button Tests ─────────────────────────────────────────
@@ -1198,6 +1299,23 @@ mod tests {
         for (idx, pkt) in drained.iter().enumerate() {
             assert_eq!(pkt.data1, idx as u8);
         }
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn midi_buffer_drain_into_preserves_unread_packets() {
+        let mut buf = MidiBuffer::<4>::new();
+        for i in 0..4u8 {
+            assert!(buf.push(UmpPacket::new_32bit(0x3, 0, 0x90, i, 100)));
+        }
+        let mut first = [UmpPacket::default(); 2];
+        assert_eq!(buf.drain_into(&mut first), 2);
+        assert_eq!(first[0].data1, 0);
+        assert_eq!(first[1].data1, 1);
+        let mut second = [UmpPacket::default(); 2];
+        assert_eq!(buf.drain_into(&mut second), 2);
+        assert_eq!(second[0].data1, 2);
+        assert_eq!(second[1].data1, 3);
         assert!(buf.is_empty());
     }
 

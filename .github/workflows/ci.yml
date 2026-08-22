@@ -51,6 +51,20 @@ jobs:
         working-directory: sensorium-v2
         run: cargo test --workspace
 
+  rust-realtime-safety:
+    name: MIDI and Audio Safety Crates
+    runs-on: windows-latest
+    needs: stage-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "sensorium-v2 -> target"
+      - name: Test bounded MIDI and audio contracts
+        working-directory: sensorium-v2
+        run: cargo test -p sensorium-midi -p sensorium-audio --lib
+
   rust-build:
     name: Rust Release Build
     runs-on: windows-latest
