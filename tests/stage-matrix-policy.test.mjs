@@ -57,6 +57,16 @@ test('no physical test is falsely marked as passed', () => {
   }
 });
 
+test('every referenced evidence path exists in the current worktree', async () => {
+  for (const domain of matrix.domains) {
+    for (const testCase of domain.tests) {
+      for (const evidence of testCase.evidence) {
+        await access(new URL(`../${evidence}`, import.meta.url));
+      }
+    }
+  }
+});
+
 test('parser fuzz target is present and independently buildable', async () => {
   await access(new URL('../sensorium-v2/fuzz/fuzz_targets/ump_parser.rs', import.meta.url));
   await access(new URL('../sensorium-v2/fuzz/Cargo.toml', import.meta.url));
