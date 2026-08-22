@@ -28,6 +28,35 @@ pub enum UmpMessageType {
     PerNoteExpression = 0x6,
 }
 
+/// MIDI 1.0 realtime messages that affect transport position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MidiRealtimeMessage {
+    Clock,
+    Start,
+    Continue,
+    Stop,
+    SongPositionPointer(u16),
+}
+
+/// Parse one bounded MIDI realtime message.
+///
+/// Song Position Pointer uses the MIDI 1.0 14-bit little-endian payload;
+/// realtime transport messages are single-byte status values. Running status
+/// and arbitrary streams remain the responsibility of the physical adapter.
+pub fn parse_midi_realtime(bytes: &[u8]) -> Result<MidiRealtimeMessage> {
+    let status = *bytes.first().ok_or_else(|| anyhow::anyhow!("empty MIDI realtime message"))?;
+    match status {
+        0xF8 if bytes.len() == 1 => Ok(MidiRealtimeMessage::Clock),
+        0xFA if bytes.len() == 1 => Ok(MidiRealtimeMessage::Start),
+        0xFB if bytes.len() == 1 => Ok(MidiRealtimeMessage::Continue),
+        0xFC if bytes.len() == 1 => Ok(MidiRealtimeMessage::Stop),
+        0xF2 if bytes.len() == 3 && bytes[1] < 0x80 && bytes[2] < 0x80 => Ok(
+            MidiRealtimeMessage::SongPositionPointer(u16::from(bytes[1]) | (u16::from(bytes[2]) << 7)),
+        ),
+        _ => anyhow::bail!("invalid MIDI realtime message length or status"),
+    }
+}
+
 impl TryFrom<u8> for UmpMessageType {
     type Error = anyhow::Error;
     fn try_from(value: u8) -> Result<Self> {
@@ -1078,6 +1107,20 @@ mod tests {
         assert!(validate_ump_frame_length(0).is_err());
         assert!(validate_ump_frame_length(17).is_err());
         assert!(MAX_FRAMES_PER_CONNECTION > 0);
+    }
+
+    #[test]
+    fn realtime_transport_messages_parse_with_bounded_lengths() {
+        assert_eq!(parse_midi_realtime(&[0xF8]).unwrap(), MidiRealtimeMessage::Clock);
+        assert_eq!(parse_midi_realtime(&[0xFA]).unwrap(), MidiRealtimeMessage::Start);
+        assert_eq!(parse_midi_realtime(&[0xFB]).unwrap(), MidiRealtimeMessage::Continue);
+        assert_eq!(parse_midi_realtime(&[0xFC]).unwrap(), MidiRealtimeMessage::Stop);
+        assert_eq!(
+            parse_midi_realtime(&[0xF2, 0x01, 0x02]).unwrap(),
+            MidiRealtimeMessage::SongPositionPointer(257),
+        );
+        assert!(parse_midi_realtime(&[0xF2, 0x80, 0x00]).is_err());
+        assert!(parse_midi_realtime(&[0xF8, 0x00]).is_err());
     }
 
     fn device(serial: Option<&str>) -> MidiDeviceId {
