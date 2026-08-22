@@ -65,6 +65,19 @@ jobs:
         working-directory: sensorium-v2
         run: cargo test -p sensorium-midi -p sensorium-audio --lib
 
+  parser-fuzz:
+    name: UMP Parser Fuzz Smoke Run
+    runs-on: ubuntu-latest
+    needs: stage-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz UMP parser with bounded budget
+        working-directory: sensorium-v2/fuzz
+        run: cargo fuzz run ump_parser -- -runs=10000 -max_total_time=30
+
   rust-build:
     name: Rust Release Build
     runs-on: windows-latest

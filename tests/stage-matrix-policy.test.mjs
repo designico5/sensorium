@@ -61,5 +61,7 @@ test('CI watches the real branch and runs the matrix plus active previews', () =
   assert.match(ci, /name:\s*MA-II-MI Mobile Preview/);
   assert.match(ci, /name:\s*MIDI and Audio Safety Crates/);
   assert.match(ci, /cargo test -p sensorium-midi -p sensorium-audio --lib/);
+  assert.match(ci, /name:\s*UMP Parser Fuzz Smoke Run/);
+  assert.match(ci, /cargo fuzz run ump_parser/);
   assert.doesNotMatch(ci, /continue-on-error:\s*true/);
 });
