@@ -28,6 +28,37 @@ pub mod ai {
     include!("generated/sensorium.local_ai.rs");
 }
 
+/// Validate the cross-process invariants that protobuf encoding alone cannot
+/// express. Callers must run this before handing a contract to a transport or
+/// real-time adapter.
+pub fn validate_ump_message(message: &midi::UmpMessage) -> Result<(), &'static str> {
+    if !(1..=4).contains(&message.words) {
+        return Err("UMP words must be between 1 and 4");
+    }
+    if message.message_type > 0x0F {
+        return Err("UMP message type must fit the 4-bit header");
+    }
+    if message.group > 0x0F {
+        return Err("UMP group must fit the 4-bit header");
+    }
+    Ok(())
+}
+
+pub fn validate_audio_parameter(parameter: &audio::Parameter) -> Result<(), &'static str> {
+    if parameter.id.trim().is_empty() {
+        return Err("audio parameter id must not be empty");
+    }
+    if !parameter.normalized_value.is_finite()
+        || !(0.0..=1.0).contains(&parameter.normalized_value)
+    {
+        return Err("normalized audio parameter must be finite and within 0..=1");
+    }
+    if !parameter.raw_value.is_finite() {
+        return Err("raw audio parameter must be finite");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,6 +153,21 @@ mod tests {
         assert_eq!(decoded.message_type, 0x4);
         assert_eq!(decoded.data1, 60);
         assert_eq!(decoded.data2, 100);
+        validate_ump_message(&decoded).unwrap();
+    }
+
+    #[test]
+    fn contract_validators_reject_unsafe_values() {
+        let mut invalid_ump = midi::UmpMessage::default();
+        invalid_ump.words = 5;
+        assert!(validate_ump_message(&invalid_ump).is_err());
+
+        let invalid_parameter = audio::Parameter {
+            id: " ".into(),
+            normalized_value: f32::NAN,
+            raw_value: f32::INFINITY,
+        };
+        assert!(validate_audio_parameter(&invalid_parameter).is_err());
     }
 
     #[test]

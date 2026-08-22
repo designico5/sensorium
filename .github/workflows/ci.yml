@@ -63,7 +63,7 @@ jobs:
           workspaces: "sensorium-v2 -> target"
       - name: Test bounded MIDI and audio contracts
         working-directory: sensorium-v2
-        run: cargo test -p sensorium-midi -p sensorium-audio --lib
+        run: cargo test -p sensorium-midi -p sensorium-audio -p sensorium-contracts --lib
 
   parser-fuzz:
     name: UMP Parser Fuzz Smoke Run
