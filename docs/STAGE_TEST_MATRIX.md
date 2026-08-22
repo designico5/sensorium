@@ -24,7 +24,7 @@ The browser demo is usable and explicitly marked as simulation. The isolated nat
 
 | Domain | Gate | Current interpretation |
 | --- | --- | --- |
-| Software | G1 | Unit, contract, snapshot/migration, bounded offline queue, rollback-state and release-manifest boundaries have automated evidence; real-browser E2E and axe accessibility checks are wired into CI, while sustained fuzzing and installer-level rollback remain open. |
+| Software | G1 | Unit, contract, snapshot/migration, bounded offline queue, rollback-state and release-manifest boundaries have automated evidence; real-browser E2E, axe accessibility checks, and the native MA-II-MI Android unit-test/lint/debug-build gate are wired into CI, while sustained fuzzing and installer-level rollback remain open. |
 | Audio hardware | G4 | Audio readback now distinguishes unknown/ready/degraded/disconnected/recovering/failed and counts XRUNs; every driver, clock, disconnect and soak condition still requires HIL. |
 | MIDI | G3 | Native parser and bounded endpoint identity evidence exists; physical hotplug, replacement and device records keep the gate closed. |
 | Network and sync | G3 | Legacy WebSocket and unauthenticated QUIC now fail closed; mTLS and bounded UMP frames exist, but certificate integration, rate-limit measurements and fault-injection HIL remain open. |
