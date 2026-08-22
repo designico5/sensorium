@@ -7,6 +7,15 @@ use std::time::Instant;
 use tokio::io::AsyncReadExt;
 use tracing::{info, warn};
 
+const MAX_UMP_FRAME_BYTES: usize = 16;
+
+fn validate_ump_frame_length(len: usize) -> Result<()> {
+    if len == 0 || len > MAX_UMP_FRAME_BYTES {
+        anyhow::bail!("UMP frame length {} is outside 1..={}", len, MAX_UMP_FRAME_BYTES);
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UmpMessageType {
     Utility = 0x0,
@@ -640,6 +649,10 @@ impl QuicServer {
                                         Ok(l) => l as usize,
                                         Err(_) => break,
                                     };
+                                    if validate_ump_frame_length(len).is_err() {
+                                        warn!(len, "rejected oversized or empty UMP frame");
+                                        break;
+                                    }
                                     let mut buf = vec![0u8; len];
                                     if stream.read_exact(&mut buf).await.is_err() {
                                         break;
@@ -1048,6 +1061,14 @@ impl Default for MidiLearnManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn transport_frame_length_is_bounded_before_allocation() {
+        assert!(validate_ump_frame_length(4).is_ok());
+        assert!(validate_ump_frame_length(16).is_ok());
+        assert!(validate_ump_frame_length(0).is_err());
+        assert!(validate_ump_frame_length(17).is_err());
+    }
 
     fn device(serial: Option<&str>) -> MidiDeviceId {
         MidiDeviceId {

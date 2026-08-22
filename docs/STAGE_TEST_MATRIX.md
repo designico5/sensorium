@@ -27,7 +27,7 @@ The browser demo is usable and explicitly marked as simulation. The isolated nat
 | Software | G1 | Unit, contract, snapshot/migration, bounded offline queue, rollback-state and release-manifest boundaries have automated evidence; real-browser E2E and axe accessibility checks are wired into CI, while sustained fuzzing and installer-level rollback remain open. |
 | Audio hardware | G4 | HIL required for every driver, clock, disconnect and soak condition. |
 | MIDI | G3 | Native parser and bounded endpoint identity evidence exists; physical hotplug, replacement and device records keep the gate closed. |
-| Network and sync | G3 | Legacy WebSocket and unauthenticated QUIC now fail closed; the mTLS API exists, but certificate integration and fault-injection HIL remain open. |
+| Network and sync | G3 | Legacy WebSocket and unauthenticated QUIC now fail closed; mTLS and bounded UMP frames exist, but certificate integration, rate-limit measurements and fault-injection HIL remain open. |
 | Display and touch | G2 | CSS contains 4K/8K layout intent; real frame-time and multitouch evidence is missing. |
 | Physical acceptance | G4 | Every device needs a signed record using the schema in the JSON ledger. |
 

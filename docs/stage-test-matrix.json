@@ -87,7 +87,7 @@
         { "id": "NET-006", "name": "offline and rejoin", "status": "NOT_STARTED", "evidence": [] },
         { "id": "NET-007", "name": "compromised certificate", "status": "BLOCKED_SECURITY", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "NET-008", "name": "unauthorized client", "status": "BLOCKED_SECURITY", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
-        { "id": "NET-009", "name": "rate limiting and DoS resistance", "status": "NOT_STARTED", "evidence": [] }
+        { "id": "NET-009", "name": "rate limiting and DoS resistance", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] }
       ]
     },
     {
