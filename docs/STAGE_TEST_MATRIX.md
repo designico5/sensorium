@@ -58,7 +58,7 @@ Store one JSON record per run under a future `evidence/stage/` directory. Valida
 
 ## Required execution order
 
-1. Clear the disk gate and make the working tree reproducible.
+1. Run `node scripts/check-disk-space.mjs --path sensorium-v2 --minimum-gb 25`; clear the disk gate and make the working tree reproducible before starting a full workspace build.
 2. Make the Rust/native build and CI gates blocking and green.
 3. Repair audio callback, MIDI/UMP parsing, identity, queues and health truth.
 4. Authenticate transport and enforce one show authority.
