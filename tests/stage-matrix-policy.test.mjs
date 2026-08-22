@@ -110,6 +110,15 @@ test('audio rate and buffer coverage is recorded as software-only evidence', () 
   }
 });
 
+test('MPE and panic handling have native software evidence without physical claims', () => {
+  const midi = matrix.domains.find((domain) => domain.id === 'midi');
+  for (const id of ['MID-004', 'MID-014']) {
+    const testCase = midi.tests.find((entry) => entry.id === id);
+    assert.equal(testCase.status, 'PARTIAL');
+    assert.ok(testCase.evidence.includes('sensorium-v2/crates/sensorium-midi/src/lib.rs'));
+  }
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);
