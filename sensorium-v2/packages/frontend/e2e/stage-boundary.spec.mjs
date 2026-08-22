@@ -18,4 +18,13 @@ test('stage boundary is fail-closed and demo entry is keyboard reachable', async
 
   await expect(page.getByRole('navigation', { name: 'Performance workspaces' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Pause show|Play show/ })).toBeVisible();
+
+  for (const workspace of [
+    'Perform', 'Sections', 'Mix', 'Macros', 'Visual', 'Mindmap', 'Acoustic',
+    '5D Stage', 'Instinct', 'Production', 'Live Tools', 'AI', 'System',
+  ]) {
+    await page.getByRole('button', { name: `${workspace} workspace` }).click();
+    const workspaceAccessibility = await new AxeBuilder({ page }).analyze();
+    expect(workspaceAccessibility.violations, `${workspace} accessibility`).toEqual([]);
+  }
 });
