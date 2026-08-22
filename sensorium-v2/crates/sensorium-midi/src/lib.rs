@@ -2,12 +2,13 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Instant;
 use tokio::io::AsyncReadExt;
 use tracing::{info, warn};
 
 const MAX_UMP_FRAME_BYTES: usize = 16;
+const MAX_FRAMES_PER_CONNECTION: usize = 4096;
 
 fn validate_ump_frame_length(len: usize) -> Result<()> {
     if len == 0 || len > MAX_UMP_FRAME_BYTES {
@@ -639,9 +640,11 @@ impl QuicServer {
 
             // Spawn a task for each connection
             tokio::spawn(async move {
+                let frame_budget = Arc::new(AtomicUsize::new(MAX_FRAMES_PER_CONNECTION));
                 loop {
                     match connection.accept_uni().await {
                         Ok(mut stream) => {
+                            let frame_budget = Arc::clone(&frame_budget);
                             tokio::spawn(async move {
                                 loop {
                                     // Read length-prefixed UMP: 2-byte length + payload
@@ -651,6 +654,12 @@ impl QuicServer {
                                     };
                                     if validate_ump_frame_length(len).is_err() {
                                         warn!(len, "rejected oversized or empty UMP frame");
+                                        break;
+                                    }
+                                    if frame_budget.fetch_update(Ordering::AcqRel, Ordering::Acquire, |remaining| {
+                                        remaining.checked_sub(1)
+                                    }).is_err() {
+                                        warn!("connection frame budget exhausted");
                                         break;
                                     }
                                     let mut buf = vec![0u8; len];
@@ -1068,6 +1077,7 @@ mod tests {
         assert!(validate_ump_frame_length(16).is_ok());
         assert!(validate_ump_frame_length(0).is_err());
         assert!(validate_ump_frame_length(17).is_err());
+        assert!(MAX_FRAMES_PER_CONNECTION > 0);
     }
 
     fn device(serial: Option<&str>) -> MidiDeviceId {
