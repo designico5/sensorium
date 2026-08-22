@@ -78,6 +78,20 @@ jobs:
         working-directory: sensorium-v2/fuzz
         run: cargo fuzz run ump_parser -- -runs=10000 -max_total_time=30
 
+  release-contracts:
+    name: Release Manifest Contract
+    runs-on: windows-latest
+    needs: stage-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "sensorium-v2 -> target"
+      - name: Reject incomplete or unsigned manifests
+        working-directory: sensorium-v2
+        run: cargo test -p sensorium-release --lib
+
   rust-build:
     name: Rust Release Build
     runs-on: windows-latest

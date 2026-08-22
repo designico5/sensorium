@@ -49,6 +49,8 @@ pub struct ReleaseArtifact {
     pub target: ReleaseTarget,
     pub size_bytes: u64,
     pub sha256: String,
+    /// Signature/provenance reference. A missing signature is never publishable.
+    pub signature: Option<String>,
 }
 
 /// Release manifest.
@@ -57,6 +59,37 @@ pub struct ReleaseManifest {
     pub version: String,
     pub artifacts: Vec<ReleaseArtifact>,
     pub changelog: String,
+}
+
+impl ReleaseManifest {
+    /// Enforce the minimum publish contract before any download link is enabled.
+    pub fn validate_for_publish(&self) -> Result<()> {
+        if self.version.split('.').count() != 3 || self.version.split('.').any(|part| part.is_empty()) {
+            anyhow::bail!("release version must contain three non-empty components");
+        }
+        if self.artifacts.is_empty() {
+            anyhow::bail!("release must contain at least one artifact");
+        }
+        if self.changelog.trim().is_empty() {
+            anyhow::bail!("release changelog must not be empty");
+        }
+        for artifact in &self.artifacts {
+            if artifact.name.trim().is_empty() || artifact.path.trim().is_empty() {
+                anyhow::bail!("release artifact name and path are required");
+            }
+            if artifact.sha256.len() != 64 || !artifact.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                anyhow::bail!("release artifact {} has an invalid SHA-256", artifact.name);
+            }
+            if artifact
+                .signature
+                .as_deref()
+                .map_or(true, |signature| signature.trim().is_empty())
+            {
+                anyhow::bail!("release artifact {} is unsigned", artifact.name);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Release automation engine.
@@ -113,5 +146,23 @@ mod tests {
         let engine = ReleaseEngine::new(ReleaseConfig::default());
         let manifest = engine.plan().unwrap();
         assert_eq!(manifest.version, "0.1.0");
+        assert!(manifest.validate_for_publish().is_err());
+    }
+
+    #[test]
+    fn publish_contract_accepts_signed_complete_manifest() {
+        let manifest = ReleaseManifest {
+            version: "2.0.0".into(),
+            changelog: "Stage gate release".into(),
+            artifacts: vec![ReleaseArtifact {
+                name: "sensorium-windows.exe".into(),
+                path: "releases/sensorium-windows.exe".into(),
+                target: ReleaseTarget::WindowsX86_64,
+                size_bytes: 42,
+                sha256: "a".repeat(64),
+                signature: Some("sigstore://example".into()),
+            }],
+        };
+        manifest.validate_for_publish().unwrap();
     }
 }

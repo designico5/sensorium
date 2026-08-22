@@ -65,5 +65,7 @@ test('CI watches the real branch and runs the matrix plus active previews', () =
   assert.match(ci, /cargo test -p sensorium-midi -p sensorium-audio -p sensorium-contracts --lib/);
   assert.match(ci, /name:\s*UMP Parser Fuzz Smoke Run/);
   assert.match(ci, /cargo fuzz run ump_parser/);
+  assert.match(ci, /name:\s*Release Manifest Contract/);
+  assert.match(ci, /cargo test -p sensorium-release --lib/);
   assert.doesNotMatch(ci, /continue-on-error:\s*true/);
 });
