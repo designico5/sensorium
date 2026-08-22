@@ -61,6 +61,14 @@ test('malformed MIDI packets have bounded parser evidence', () => {
   assert.ok(malformed.evidence.includes('sensorium-v2/crates/sensorium-midi/src/lib.rs'));
 });
 
+test('integration coverage names an executable native integration suite', () => {
+  const integration = matrix.domains
+    .find((domain) => domain.id === 'software')
+    .tests.find((testCase) => testCase.id === 'SW-002');
+  assert.equal(integration.status, 'PARTIAL');
+  assert.ok(integration.evidence.includes('sensorium-v2/crates/sensorium-audio/tests/integration_test.rs'));
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);

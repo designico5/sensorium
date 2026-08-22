@@ -18,7 +18,7 @@
       "required": true,
       "tests": [
         { "id": "SW-001", "name": "unit tests", "status": "PARTIAL", "evidence": ["tests/", "sensorium-v2/packages/frontend/src/stage-boundary.test.ts", "sensorium-v2/crates/sensorium-midi/src/lib.rs", "sensorium-v2/crates/sensorium-audio/src/dsp.rs", "sensorium-v2/crates/sensorium-chaos/src/lib.rs"] },
-        { "id": "SW-002", "name": "integration tests", "status": "AUTOMATED_OPEN", "evidence": [] },
+        { "id": "SW-002", "name": "integration tests", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-audio/tests/integration_test.rs"] },
         { "id": "SW-003", "name": "contract tests", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-contracts/src/lib.rs"] },
         { "id": "SW-004", "name": "property-based tests", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs"] },
         { "id": "SW-005", "name": "parser fuzzing", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-midi/src/lib.rs", "sensorium-v2/fuzz/fuzz_targets/ump_parser.rs"] },
