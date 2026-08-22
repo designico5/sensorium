@@ -19,7 +19,9 @@ jobs:
         with:
           node-version: "20"
       - name: Validate physical-stage matrix coverage
-        run: node --test tests/stage-matrix-policy.test.mjs tests/stage-evidence-schema.test.mjs
+        run: node --test tests/stage-matrix-policy.test.mjs tests/stage-evidence-schema.test.mjs tests/stage-evidence-validator.test.mjs
+      - name: Validate available HIL evidence records
+        run: node scripts/validate-stage-evidence.mjs
 
   rust-check:
     name: Rust Workspace Check

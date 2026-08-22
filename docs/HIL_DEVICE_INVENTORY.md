@@ -14,3 +14,5 @@ Mindestens zu erfassen sind:
 - unveränderliche Logreferenz, Datum und verantwortlicher Prüfer
 
 Die Datei enthält absichtlich keine simulierten Messwerte und keinen voreiligen `PASS`-Status. Für eine unbeschränkte Gerätezahl werden weitere Profile nach demselben Schema ergänzt.
+
+Vor jedem Review prüft `node scripts/validate-stage-evidence.mjs` alle vorhandenen JSON-Records unter `evidence/stage/`. Ein leerer Ordner wird ausdrücklich als „keine Nachweise vorhanden“ gemeldet; er wird niemals als bestanden interpretiert. Ungültige Records, unbekannte Felder, negative Messwerte und Platzhalter in `PASS`-Records brechen die Prüfung ab.
