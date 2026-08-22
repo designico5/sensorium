@@ -234,6 +234,44 @@ pub struct SyncState {
     pub doc: Automerge,
 }
 
+/// Bounded control-plane queue for offline changes awaiting rejoin.
+#[derive(Debug, Default)]
+pub struct OfflineSyncQueue {
+    pending: Vec<Vec<u8>>,
+    max_entries: usize,
+}
+
+impl OfflineSyncQueue {
+    pub fn new(max_entries: usize) -> Result<Self> {
+        if max_entries == 0 {
+            anyhow::bail!("offline queue capacity must be greater than zero");
+        }
+        Ok(Self { pending: Vec::with_capacity(max_entries.min(64)), max_entries })
+    }
+
+    pub fn enqueue(&mut self, change: Vec<u8>) -> Result<()> {
+        if self.pending.len() >= self.max_entries {
+            anyhow::bail!("offline sync queue is full");
+        }
+        self.pending.push(change);
+        Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        self.pending.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
+
+    /// Remove at most `max_items` changes in original order for a rejoin batch.
+    pub fn drain_for_rejoin(&mut self, max_items: usize) -> Vec<Vec<u8>> {
+        let count = max_items.min(self.pending.len());
+        self.pending.drain(..count).collect()
+    }
+}
+
 impl SyncState {
     pub fn new() -> Self {
         Self {
@@ -459,6 +497,22 @@ impl RepoSyncState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn offline_queue_is_bounded_and_rejoins_in_order() {
+        let mut queue = OfflineSyncQueue::new(2).unwrap();
+        queue.enqueue(vec![1]).unwrap();
+        queue.enqueue(vec![2]).unwrap();
+        assert!(queue.enqueue(vec![3]).is_err());
+        assert_eq!(queue.drain_for_rejoin(1), vec![vec![1]]);
+        assert_eq!(queue.drain_for_rejoin(8), vec![vec![2]]);
+        assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn offline_queue_rejects_zero_capacity() {
+        assert!(OfflineSyncQueue::new(0).is_err());
+    }
 
     #[test]
     fn snapshot_envelope_is_versioned_and_legacy_json_migrates() {
