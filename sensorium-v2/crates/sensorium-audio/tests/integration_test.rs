@@ -170,3 +170,18 @@ fn dsp_graph_state_queries() {
     let expected_linear = 10.0f64.powf(-12.0 / 20.0);
     assert!((graph.current_gain() - expected_linear).abs() < 0.0001);
 }
+
+/// Test: supported stage sample rates and common callback buffer sizes remain finite.
+#[test]
+fn dsp_graph_covers_stage_sample_rates_and_buffer_sizes() {
+    for sample_rate in [44_100.0, 48_000.0, 88_200.0, 96_000.0, 192_000.0] {
+        for frames in [32usize, 64, 128, 256, 512, 1024] {
+            let mut graph = AudioGraph::new(sample_rate);
+            let mut buffer = vec![0.125f32; frames * 2];
+            graph.process_interleaved(&mut buffer);
+            assert_eq!(graph.sample_rate(), sample_rate);
+            assert!(buffer.iter().all(|sample| sample.is_finite()),
+                "non-finite DSP output at {} Hz / {} frames", sample_rate, frames);
+        }
+    }
+}

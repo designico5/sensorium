@@ -35,8 +35,8 @@
       "gate": "G4",
       "required": true,
       "tests": [
-        { "id": "AUD-001", "name": "buffer sizes", "status": "HIL_REQUIRED", "evidence": [] },
-        { "id": "AUD-002", "name": "44.1 / 48 / 88.2 / 96 / 192 kHz", "status": "HIL_REQUIRED", "evidence": [] },
+        { "id": "AUD-001", "name": "buffer sizes", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-audio/tests/integration_test.rs"] },
+        { "id": "AUD-002", "name": "44.1 / 48 / 88.2 / 96 / 192 kHz", "status": "PARTIAL", "evidence": ["sensorium-v2/crates/sensorium-audio/tests/integration_test.rs"] },
         { "id": "AUD-003", "name": "ASIO", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "AUD-004", "name": "WASAPI Exclusive", "status": "HIL_REQUIRED", "evidence": [] },
         { "id": "AUD-005", "name": "CoreAudio", "status": "HIL_REQUIRED", "evidence": [] },

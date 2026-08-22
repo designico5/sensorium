@@ -101,6 +101,15 @@ test('network fault models and offline rejoin have bounded software evidence', (
   assert.ok(rejoin.evidence.includes('sensorium-v2/crates/sensorium-sync/src/lib.rs'));
 });
 
+test('audio rate and buffer coverage is recorded as software-only evidence', () => {
+  const audio = matrix.domains.find((domain) => domain.id === 'audio-hardware');
+  for (const id of ['AUD-001', 'AUD-002']) {
+    const testCase = audio.tests.find((entry) => entry.id === id);
+    assert.equal(testCase.status, 'PARTIAL');
+    assert.ok(testCase.evidence.includes('sensorium-v2/crates/sensorium-audio/tests/integration_test.rs'));
+  }
+});
+
 test('CI watches the real branch and runs the matrix plus active previews', () => {
   assert.match(ci, /branches:\s*\[master, main, develop\]/);
   assert.match(ci, /name:\s*Stage Matrix Contract/);
