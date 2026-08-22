@@ -33,11 +33,10 @@ The browser demo is usable and explicitly marked as simulation. The isolated nat
 
 ## Evidence record format
 
-Store one JSON record per run under a future `evidence/stage/` directory. A record must include:
+Store one JSON record per run under a future `evidence/stage/` directory. Validate it against [`stage-evidence.schema.json`](./stage-evidence.schema.json). A record must include:
 
 ```json
 {
-  "testId": "AUD-006",
   "device": "owner-supplied exact model",
   "firmware": "vendor version",
   "driver": "driver version",
@@ -46,14 +45,14 @@ Store one JSON record per run under a future `evidence/stage/` directory. A reco
   "testCase": "disconnect during playback",
   "expected": "output enters bounded safe state and recovers after explicit re-arm",
   "measured": "operator observation plus captured metrics",
-  "latencyMs": 0,
-  "jitterMs": 0,
+  "latency": 0,
+  "jitter": 0,
   "failureMode": "observed failure and containment",
-  "recoveryTimeMs": 0,
+  "recoveryTime": 0,
   "log": "relative path to immutable log",
   "timestamp": "ISO-8601",
   "operator": "named reviewer",
-  "result": "PASS or FAIL"
+  "result": "PASS, FAIL or PENDING"
 }
 ```
 

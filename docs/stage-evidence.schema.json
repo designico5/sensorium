@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sensorium.stage/evidence.schema.json",
+  "title": "Sensorium physical stage evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "device", "firmware", "driver", "os", "connection", "testCase",
+    "expected", "measured", "latency", "jitter", "failureMode",
+    "recoveryTime", "log", "timestamp", "operator", "result"
+  ],
+  "properties": {
+    "device": { "type": "string", "minLength": 1 },
+    "firmware": { "type": "string", "minLength": 1 },
+    "driver": { "type": "string", "minLength": 1 },
+    "os": { "type": "string", "minLength": 1 },
+    "connection": { "type": "string", "minLength": 1 },
+    "testCase": { "type": "string", "minLength": 1 },
+    "expected": { "type": "string", "minLength": 1 },
+    "measured": { "type": "string", "minLength": 1 },
+    "latency": { "type": "number", "minimum": 0 },
+    "jitter": { "type": "number", "minimum": 0 },
+    "failureMode": { "type": "string", "minLength": 1 },
+    "recoveryTime": { "type": "number", "minimum": 0 },
+    "log": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "operator": { "type": "string", "minLength": 1 },
+    "result": { "enum": ["PASS", "FAIL", "PENDING"] }
+  }
+}
