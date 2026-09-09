@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "observedAtUtc": "2026-09-09T05:28:23Z",
+  "sourceRevision": "2e3b5db67187962677000e87670140f527c38aba",
+  "sourceState": "DIRTY_UNCOMMITTED_INTEGRATION_CANDIDATE",
+  "sourceProvenance": {
+    "restartMarkerSha256": "b478557a49eee81405a530e523c89924897738000cd9916f1fdd2ded55b6ea95",
+    "hyperTorusReportSha256": "a342ebbfe92c15cab825e9f38777ecfe125ff18f9dda346198f4a0522dc54a03",
+    "governanceConfigSha256": "a81b4cbc05a33743b481bf85723f0adf6daa3a4bc46e9aed58384d0bbf71f56e"
+  },
+  "sourceManifestSha256": "a81b4cbc05a33743b481bf85723f0adf6daa3a4bc46e9aed58384d0bbf71f56e",
+  "mode": "SOURCE_SNAPSHOT_ONLY",
+  "scope": "INVENTORY_ONLY",
+  "live": false,
+  "realtime": false,
+  "connected": false,
+  "detected": false,
+  "writeIoAllowed": false,
+  "routingMutationAllowed": false,
+  "powerControlAllowed": false,
+  "operationalApproval": "NOT_GRANTED",
+  "hardwareAcceptance": "NOT_EVALUATED",
+  "physicalAcceptance": "NOT_EVALUATED",
+  "recordingAcceptance": "NOT_EVALUATED",
+  "liveShowRelease": "NOT_GRANTED",
+  "referenceDevice": {
+    "family": "Ableton Push",
+    "variant": "UNKNOWN",
+    "evidenceClass": "APPROVED_REFERENCE_SELECTION",
+    "physicalDetection": "UNOBSERVED"
+  },
+  "gates": [
+    {"id":"contract-authority","owner":"observer-spark2","status":"PARTIAL","reason":"Owners assigned; final schema identities and source revisions remain unbound."},
+    {"id":"device-identity","owner":"hardware-hil","status":"BLOCKED","reason":"Exact Push variant, observed port and confirmed owner inventory are unknown."},
+    {"id":"read-only-observation","owner":"daw-interop","status":"BLOCKED","reason":"No confirmed V2 input-only adapter or observed Push endpoint."},
+    {"id":"flight-recorder","owner":"recovery-observability-harness","status":"CROSS_SESSION_REPORTED","reason":"Owner report exists; branch, commit and report path are not locally bound."},
+    {"id":"virtual-fault-fixtures","owner":"recovery-observability-harness","status":"CROSS_SESSION_REPORTED","reason":"Virtual behavior was reported and is not HIL."},
+    {"id":"bounded-recovery","owner":"recovery-observability-harness","status":"SIMULATED","reason":"Policy acts only in a virtual graph."},
+    {"id":"registered-ci","owner":"recovery-observability-harness","status":"PARTIAL","reason":"Bash/WSL, Rust, cargo-audit and cargo-deny remain blocked on the reported host."},
+    {"id":"hil","owner":"hardware-hil","status":"BLOCKED","reason":"Variant, endpoint and physical measurements are unavailable."},
+    {"id":"full-spectrum-studio-test-drive","owner":"studio-operator","status":"BLOCKED","reason":"Identity, DAW observation, recording readback and rehearsal evidence are unavailable."},
+    {"id":"release-dossier","owner":"recovery-observability-harness","status":"BLOCKED","reason":"CI, HIL and studio evidence are incomplete."}
+  ],
+  "tests": [
+    {"label":"Root software tests","status":"PASS 332/332","limit":"No Windows, DAW or hardware I/O."},
+    {"label":"V2 frontend tests","status":"PASS 14/14","limit":"No browser E2E or hardware I/O."},
+    {"label":"V2 production build","status":"PASS","limit":"Static web build; 964.13 kB chunk warning."},
+    {"label":"Contract drift","status":"PASS 5/5","limit":"Schema check, not a device bridge."},
+    {"label":"Realtime hotpaths","status":"PASS 9/9","limit":"Static source check, not measured latency."}
+  ],
+  "warnings": [
+    "Snapshot captured from a dirty local integration candidate.",
+    "No live session source, Windows host, Ableton instance or physical device is connected.",
+    "Imported journals remain local browser data and cannot grant hardware or recording acceptance."
+  ]
+}
